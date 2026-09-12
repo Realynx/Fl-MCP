@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net9.0-windows7.0": {
+      "FruityLink.Plugins.Abstractions": {
+        "type": "Direct",
+        "requested": "[0.1.0, )",
+        "resolved": "0.1.0",
+        "contentHash": "D80FsHXQWpS7Vk2zOmxHzMzn5O55Vrg8+79f4x8zizNeekbKU+xqfIQDDLrToKbUdw3owlXTYmLpQj0X6rDYAw==",
+        "dependencies": {
+          "FruityLink.Core": "0.1.0"
+        }
+      },
+      "FruityLink.Core": {
+        "type": "Transitive",
+        "resolved": "0.1.0",
+        "contentHash": "O+byVp/CLgI8Ski7Y6MxxdpTCtBRHyThSRAk92hFMedsVd4P08QwddXEqcO1IkP5PpmxFyvsCfCt4nFI3eyR2Q=="
+      },
+      "flmcp.protocol": {
+        "type": "Project"
+      }
+    }
+  }
+}

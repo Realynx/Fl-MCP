@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fl-studio": {
+      "command": "dotnet",
+      "args": ["C:\\Tools\\FlMcp\\server\\FlMcp.Server.dll"],
+      "env": {
+        "FL_MCP_FL_EXE": "C:\\Program Files\\Image-Line\\FL Studio 2026\\FL64.exe",
+        "FL_MCP_TEMPLATE": "C:\\Music\\Templates\\McpEmpty.flp",
+        "FL_MCP_WORKSPACE": "C:\\Music\\McpProjects"
+      }
+    }
+  }
+}

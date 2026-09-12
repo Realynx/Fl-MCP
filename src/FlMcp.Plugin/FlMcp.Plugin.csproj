@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../FlMcp.Protocol/FlMcp.Protocol.csproj" />
+    <PackageReference Include="FruityLink.Plugins.Abstractions" Version="0.1.0" Condition="'$(FruityLinkSdkRoot)' == ''" />
+    <ProjectReference Include="$(FruityLinkSdkRoot)/src/FruityLink.Plugins.Abstractions/FruityLink.Plugins.Abstractions.csproj" Condition="'$(FruityLinkSdkRoot)' != ''" />
+  </ItemGroup>
+</Project>

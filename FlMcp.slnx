@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/FlMcp.Protocol/FlMcp.Protocol.csproj" />
+  <Project Path="src/FlMcp.Plugin/FlMcp.Plugin.csproj" />
+  <Project Path="src/FlMcp.Server/FlMcp.Server.csproj" />
+  <Project Path="tests/FlMcp.Tests/FlMcp.Tests.csproj" />
+</Solution>
