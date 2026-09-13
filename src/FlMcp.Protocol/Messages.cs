@@ -2,9 +2,19 @@ using System.Text.Json;
 
 namespace FlMcp.Protocol;
 
-public sealed record BridgeRequest(string Token, string Operation, JsonElement Arguments, int TimeoutSeconds = 30);
+public sealed record BridgeRequest(string Token, string Operation, JsonElement Arguments, int TimeoutSeconds = 30)
+{
+    public string? LeaseToken { get; init; }
+}
 public sealed record BridgeResponse(JsonElement? Result, string? Error = null);
-public sealed record SessionStatus(bool Available, int ProcessId, string Project, double Tempo, int Ppq);
+public sealed record SessionStatus(bool Available, int ProcessId, string Project, double Tempo, int Ppq)
+{
+    public string? ProjectPath { get; init; }
+    public string? ProjectTitle { get; init; }
+    public bool? Untitled { get; init; }
+    public string? Ownership { get; init; }
+    public bool RequiresReattach { get; init; }
+}
 public sealed record Note(int Channel, int Key, int StartTick, int LengthTick, int Velocity);
 public sealed record TempoArgs(double Bpm);
 public sealed record NameArgs(string Name);

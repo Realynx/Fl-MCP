@@ -31,15 +31,23 @@
       },
       "FruityLink.Core": {
         "type": "Transitive",
-        "resolved": "0.1.0",
-        "contentHash": "O+byVp/CLgI8Ski7Y6MxxdpTCtBRHyThSRAk92hFMedsVd4P08QwddXEqcO1IkP5PpmxFyvsCfCt4nFI3eyR2Q=="
+        "resolved": "0.2.0",
+        "contentHash": "pwOWAjo7ZEVW+WIDNtsAi8XvmkgvjrugiKv5CDq7bGylxnitl3oiTs+XQg3MhAD5Ot0V9TA0An+s0qtY6iM3iA=="
       },
       "FruityLink.Plugins.Abstractions": {
         "type": "Transitive",
-        "resolved": "0.1.0",
-        "contentHash": "D80FsHXQWpS7Vk2zOmxHzMzn5O55Vrg8+79f4x8zizNeekbKU+xqfIQDDLrToKbUdw3owlXTYmLpQj0X6rDYAw==",
+        "resolved": "0.2.0",
+        "contentHash": "lZUmsXDbznwCdQtIuzY2XEODsCDNR/4obWSWv7zRSurZoxorX4EyBZnO8qFo209g1MuCXwXXdaknvPAsWsWwqw==",
         "dependencies": {
-          "FruityLink.Core": "0.1.0"
+          "FruityLink.Core": "0.2.0"
+        }
+      },
+      "FruityLink.Scripting": {
+        "type": "Transitive",
+        "resolved": "0.2.0",
+        "contentHash": "e7GTtCg5Z29TJn2u4xEvxsxecDxV1O9sjiHZ9dY8z9OWd/KNWkT/hAtomK41zQ2MbMZ8Rw2p+U3zL9dRbkyQuA==",
+        "dependencies": {
+          "FruityLink.Core": "0.2.0"
         }
       },
       "Microsoft.CodeCoverage": {
@@ -425,8 +433,9 @@
       "flmcp.plugin": {
         "type": "Project",
         "dependencies": {
-          "FlMcp.Protocol": "[0.1.0, )",
-          "FruityLink.Plugins.Abstractions": "[0.1.0, )"
+          "FlMcp.Protocol": "[0.2.0, )",
+          "FruityLink.Plugins.Abstractions": "[0.2.0, )",
+          "FruityLink.Scripting": "[0.2.0, )"
         }
       },
       "flmcp.protocol": {
@@ -435,7 +444,7 @@
       "flmcp.server": {
         "type": "Project",
         "dependencies": {
-          "FlMcp.Protocol": "[0.1.0, )",
+          "FlMcp.Protocol": "[0.2.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.0, )",
           "ModelContextProtocol": "[2.2.0, )"
         }

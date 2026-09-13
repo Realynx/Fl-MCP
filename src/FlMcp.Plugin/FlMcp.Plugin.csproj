@@ -6,7 +6,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../FlMcp.Protocol/FlMcp.Protocol.csproj" />
-    <PackageReference Include="FruityLink.Plugins.Abstractions" Version="0.1.0" Condition="'$(FruityLinkSdkRoot)' == ''" />
+    <PackageReference Include="FruityLink.Plugins.Abstractions" Version="0.2.0" Condition="'$(FruityLinkSdkRoot)' == ''" />
+    <PackageReference Include="FruityLink.Scripting" Version="0.2.0" Condition="'$(FruityLinkSdkRoot)' == ''" />
     <ProjectReference Include="$(FruityLinkSdkRoot)/src/FruityLink.Plugins.Abstractions/FruityLink.Plugins.Abstractions.csproj" Condition="'$(FruityLinkSdkRoot)' != ''" />
+    <ProjectReference Include="$(FruityLinkSdkRoot)/src/FruityLink.Scripting/FruityLink.Scripting.csproj" Condition="'$(FruityLinkSdkRoot)' != ''" />
   </ItemGroup>
 </Project>

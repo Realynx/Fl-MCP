@@ -95,6 +95,9 @@ public sealed class SessionTests
         Assert.Equal(64, launch.Environment[PipeProtocol.TokenVariable]!.Length);
         Assert.NotEqual(fixture.Settings.Template, launch.ArgumentList[0]);
         Assert.Equal(File.ReadAllBytes(fixture.Settings.Template!), File.ReadAllBytes(launch.ArgumentList[0]));
+        Assert.Equal(fixture.Settings.ResolvePythonRuntime(), launch.Environment["FL_MCP_PYTHON_RUNTIME"]);
+        Assert.Equal(fixture.Settings.ResolvePythonPackage(), launch.Environment["FL_MCP_PYTHON_PATH"]);
+        Assert.False(launch.Environment.ContainsKey("FL_MCP_PYTHON"));
     }
 
     private sealed class Fixture : IDisposable
@@ -164,16 +167,120 @@ public sealed class SessionTests
         Assert.Equal(24, Artifacts.VerifyProject(fixture.Files.PathFor("finished.flp")));
     }
 
+    [Fact]
+    public async Task EmbeddedExecutionRoutesOneBridgeRequestAndBlocksConcurrentEdits()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Bridge.OnPython = async (request, ct) =>
+        {
+            Assert.Equal("result = 123", request.Code);
+            Assert.Equal(200, request.TimeoutSeconds);
+            Assert.Equal(fixture.Files.PathFor("fresh.flp"), request.ExpectedProjectPath);
+            called.TrySetResult();
+            await release.Task.WaitAsync(ct);
+            return Messages.Element(new { ok = true, result = 123 });
+        };
+        var execution = session.ExecutePythonAsync("result = 123", 200, CancellationToken.None);
+        await called.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var edit = session.CallAsync("tempo", new TempoArgs(123), CancellationToken.None);
+        Assert.False(edit.IsCompleted);
+        release.TrySetResult();
+        await execution;
+        await edit;
+        Assert.Single(fixture.Bridge.Calls, operation => operation == "python_execute");
+        Assert.DoesNotContain("python_call", fixture.Bridge.Calls);
+    }
+
+    [Fact]
+    public async Task TypedProjectIdentityOverridesMisleadingLegacyText()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.StructuredProject = fixture.Files.PathFor("different.flp");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.PythonApiAsync(null, CancellationToken.None));
+        Assert.DoesNotContain("python_call", fixture.Bridge.Calls);
+    }
+
+    [Fact]
+    public async Task CancelledEmbeddedInvocationMustDrainBeforeCloseCanStopStudio()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Bridge.OnPython = async (_, ct) =>
+        {
+            using var registration = ct.Register(() => cancelled.TrySetResult());
+            called.TrySetResult();
+            await release.Task;
+            ct.ThrowIfCancellationRequested();
+            return Messages.Element(new { ok = true });
+        };
+        using var cancellation = new CancellationTokenSource();
+        var execution = session.ExecutePythonAsync("result = 1", 10, cancellation.Token);
+        await called.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var closing = session.CloseAsync("saved.flp", CancellationToken.None);
+        Assert.False(execution.IsCompleted);
+        Assert.False(closing.IsCompleted);
+        Assert.False(fixture.Processes.Started[0].Process.Terminated);
+        release.TrySetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => execution);
+        await closing;
+        Assert.True(fixture.Processes.Started[0].Process.Terminated);
+    }
+
+    [Fact]
+    public async Task LostEmbeddedAcknowledgementPreventsDisposeFromKillingFlUntilStatusConfirmsIdle()
+    {
+        using var fixture = new Fixture();
+        var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => throw new BridgeCompletionUnknownException(new EndOfStreamException());
+        await Assert.ThrowsAsync<BridgeCompletionUnknownException>(() => session.ExecutePythonAsync("result = 1", 10, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => session.DisposeAsync().AsTask());
+        Assert.False(fixture.Processes.Started[0].Process.Terminated);
+        await session.CallAsync("status", new { }, CancellationToken.None);
+        await session.DisposeAsync();
+        Assert.True(fixture.Processes.Started[0].Process.Terminated);
+    }
+
+    [Fact]
+    public async Task ExitedUnconfirmedSessionDoesNotPreventFailedNewLaunchCleanup()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => throw new BridgeCompletionUnknownException(new EndOfStreamException());
+        await Assert.ThrowsAsync<BridgeCompletionUnknownException>(() => session.ExecutePythonAsync("result = 1", 10, CancellationToken.None));
+        fixture.Processes.Started[0].Process.Terminate();
+        fixture.Bridge.Available = false;
+        await Assert.ThrowsAsync<TimeoutException>(() => session.LaunchAsync("new-generation.flp", 1, CancellationToken.None));
+        Assert.True(fixture.Processes.Started[1].Process.Terminated);
+    }
+
     private sealed class FakeBridge : IBridgeClient
     {
         public bool Available { get; set; } = true;
         public bool ValidSave { get; set; } = true;
         public string Project { get; set; } = "";
+        public string? StructuredProject { get; set; }
         public List<string> Calls { get; } = [];
+        public Func<PythonExecute, CancellationToken, Task<JsonElement>>? OnPython { get; set; }
         public Task<JsonElement> CallAsync(int processId, string token, string operation, object arguments, int timeoutSeconds, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             Calls.Add(operation);
+            if (operation == "python_execute") return OnPython!((PythonExecute)arguments, ct);
+            if (operation == "python_call") return Task.FromResult(Messages.Element(new PythonReply(Messages.Element(new { apiVersion = 1, operations = Array.Empty<object>() }))));
             if (operation == "save")
             {
                 var path = ((PathArgs)arguments).Path;
@@ -181,7 +288,7 @@ public sealed class SessionTests
                 else File.WriteAllText(path, "this is not a valid project file");
                 return Task.FromResult(Messages.Element(new { path }));
             }
-            return Task.FromResult(Messages.Element(new SessionStatus(Available, processId, "Title: fixture\nPath: " + Project + "\nSaved: yes", 120, 96)));
+            return Task.FromResult(Messages.Element(new SessionStatus(Available, processId, "Title: fixture\nPath: " + Project + "\nSaved: yes", 120, 96) { ProjectPath = StructuredProject }));
         }
     }
 

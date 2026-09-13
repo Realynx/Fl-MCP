@@ -6,7 +6,7 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Realynx</Authors>
     <RepositoryUrl>https://github.com/Realynx/Fl-MCP</RepositoryUrl>
     <PackageLicenseExpression>PolyForm-Noncommercial-1.0.0</PackageLicenseExpression>

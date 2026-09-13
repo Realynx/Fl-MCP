@@ -1,5 +1,13 @@
 name: build-and-test
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      sdk_ref:
+        description: Explicit Realynx/FL-Automation commit or tag containing the 0.2.0 scripting SDK
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -7,18 +15,53 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: fl-mcp
+      - name: Select matching SDK revision
+        id: sdk
+        shell: pwsh
+        env:
+          SDK_OVERRIDE: ${{ inputs.sdk_ref || vars.FRUITYLINK_SDK_REF }}
+        run: |
+          $sdkRef = $env:SDK_OVERRIDE
+          if (-not $sdkRef) { $sdkRef = (Get-Content -LiteralPath fl-mcp/SDK_REF -Raw).Trim() }
+          if ($sdkRef -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]*$') { throw 'Invalid SDK commit or tag.' }
+          "ref=$sdkRef" >> $env:GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          repository: Realynx/FL-Automation
+          ref: ${{ steps.sdk.outputs.ref }}
+          path: fruitylink-sdk
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             9.0.x
             10.0.x
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.2'
+      - name: Build shared Python package
+        shell: pwsh
+        run: uv run --directory fruitylink-sdk/python --locked python -m build
+      - name: Prepare verified CPython for embedded integration tests
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'python-3.14.6-embed-amd64.zip'
+          $runtime = Join-Path $env:RUNNER_TEMP 'fruitylink-embedded-python'
+          Invoke-WebRequest 'https://www.python.org/ftp/python/3.14.6/python-3.14.6-embed-amd64.zip' -OutFile $archive
+          $expected = 'df901e84a896ff1ee720ad03377e0c8d8c2244fda79808aeeaff6316df1cb75c'
+          if ((Get-Item -LiteralPath $archive).Length -ne 12570832 -or (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) {
+            throw 'Embedded CPython test archive failed integrity verification.'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $runtime
+          "FRUITYLINK_TEST_PYTHON_RUNTIME=$runtime" >> $env:GITHUB_ENV
       - name: Quality gate and tests
         shell: pwsh
-        run: ./scripts/codefactor-check.ps1
+        run: ./fl-mcp/scripts/codefactor-check.ps1 -FruityLinkSdkRoot ${{ github.workspace }}/fruitylink-sdk
       - name: Prepare distribution
         shell: pwsh
-        run: ./scripts/package.ps1 -OutputDirectory ./artifacts/fl-mcp
+        run: ./fl-mcp/scripts/package.ps1 -OutputDirectory ./fl-mcp/artifacts/fl-mcp -FruityLinkSdkRoot ./fruitylink-sdk -PythonWheel ./fruitylink-sdk/python/dist/fruitylink_python-0.2.0-py3-none-any.whl
       - uses: actions/upload-artifact@v4
         with:
           name: fl-mcp-windows
-          path: artifacts/fl-mcp
+          path: fl-mcp/artifacts/fl-mcp

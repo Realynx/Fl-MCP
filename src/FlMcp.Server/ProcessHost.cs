@@ -15,10 +15,20 @@ public interface IProcessHost
 {
     bool HasRunningStudio();
     IManagedProcess Start(ProcessStartInfo startInfo);
+    IReadOnlyList<int> ListStudioProcessIds() => [];
+    IManagedProcess Observe(int processId) => throw new NotSupportedException("This host cannot observe existing processes.");
 }
 
 public sealed class ProcessHost : IProcessHost
 {
+    public IReadOnlyList<int> ListStudioProcessIds()
+    {
+        var matches = Process.GetProcessesByName("FL").Concat(Process.GetProcessesByName("FL64")).ToArray();
+        try { return matches.Select(process => process.Id).ToArray(); }
+        finally { foreach (var process in matches) process.Dispose(); }
+    }
+
+    public IManagedProcess Observe(int processId) => new ObservedProcess(Process.GetProcessById(processId));
     public bool HasRunningStudio()
     {
         var processes = Process.GetProcessesByName("FL").Concat(Process.GetProcessesByName("FL64")).ToArray();
@@ -42,6 +52,16 @@ public sealed class ProcessHost : IProcessHost
             process.Kill(entireProcessTree: true);
             if (!process.WaitForExit(5000)) throw new TimeoutException("Owned FL Studio process did not stop within five seconds.");
         }
+        public void Dispose() => process.Dispose();
+    }
+
+    private sealed class ObservedProcess(Process process) : IManagedProcess
+    {
+        public int Id => process.Id;
+        public bool HasExited => process.HasExited;
+        public int ExitCode => process.ExitCode;
+        public Task WaitForExitAsync(CancellationToken ct) => process.WaitForExitAsync(ct);
+        public void Terminate() => throw new InvalidOperationException("An attached FL process is owned by the user and cannot be terminated.");
         public void Dispose() => process.Dispose();
     }
 }

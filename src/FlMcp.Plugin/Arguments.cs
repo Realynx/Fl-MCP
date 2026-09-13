@@ -4,6 +4,8 @@ namespace FlMcp.Plugin;
 
 internal static class Arguments
 {
+    public const int MaximumMixerTrack = 500;
+
     public static void Range(int value, int minimum, int maximum, string name)
     {
         if (value < minimum || value > maximum) throw new ArgumentOutOfRangeException(name, $"Expected {minimum}..{maximum}.");

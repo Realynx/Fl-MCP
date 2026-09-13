@@ -25,11 +25,18 @@ public sealed class McpIntegrationTests
         });
         await using var client = await McpClient.CreateAsync(transport, cancellationToken: deadline.Token);
         var tools = await client.ListToolsAsync(cancellationToken: deadline.Token);
-        Assert.Equal(21, tools.Count);
+        Assert.Equal(27, tools.Count);
         Assert.All(tools, tool => Assert.StartsWith("fl_", tool.Name));
         Assert.Contains(tools, tool => tool.Name == "fl_project_render");
+        Assert.Contains(tools, tool => tool.Name == "fl_execute_python");
+        Assert.Contains(tools, tool => tool.Name == "fl_instances");
+        Assert.Contains(tools, tool => tool.Name == "fl_attach");
+        Assert.Contains(tools, tool => tool.Name == "fl_detach");
+        var docs = await client.CallToolAsync("fl_python_docs", cancellationToken: deadline.Token);
+        Assert.NotEqual(true, docs.IsError);
         var response = await client.CallToolAsync("fl_status", cancellationToken: deadline.Token);
         Assert.True(response.IsError);
+        Assert.Contains("No FL project is connected", string.Join(" ", response.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>().Select(item => item.Text)));
     }
 
     private static string FindRepository()

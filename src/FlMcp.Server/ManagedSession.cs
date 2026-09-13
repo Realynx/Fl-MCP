@@ -4,14 +4,15 @@ using FlMcp.Protocol;
 
 namespace FlMcp.Server;
 
-/// <summary>Owns one disposable project process; all editing and render transitions are serialized.</summary>
-public sealed class ManagedSession(ServerSettings settings, IProcessHost processes, IBridgeClient bridge) : IAsyncDisposable
+/// <summary>Owns a disposable process or observes an explicitly attached process; serializes session operations.</summary>
+public sealed partial class ManagedSession(ServerSettings settings, IProcessHost processes, IBridgeClient bridge, IInstanceSource? discovery = null) : IAsyncDisposable
 {
     private readonly WorkspacePaths paths = new(settings.Workspace);
     private readonly SemaphoreSlim gate = new(1, 1);
     private IManagedProcess? authoring;
     private string? token;
     private string? expectedProject;
+    private bool embeddedCompletionUnknown;
 
     public async Task<SessionStatus> LaunchAsync(string projectPath, int timeoutSeconds, CancellationToken ct, string? sourceProjectPath = null)
     {
@@ -21,17 +22,23 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
         try
         {
             settings.ValidateLaunch();
-            if (authoring is { HasExited: false }) throw new InvalidOperationException("A managed project is already open. Save and render it before starting another.");
+            if (authoring is { HasExited: false }) throw new InvalidOperationException("An FL session is already connected. Detach it or save/close a disposable session before starting another.");
             if (processes.HasRunningStudio()) throw new InvalidOperationException("Close other FL Studio processes first. FL MCP will not reuse a personal session.");
             var path = paths.NewFile(projectPath, ".flp");
             var source = sourceProjectPath is null ? settings.Template! : paths.Resolve(sourceProjectPath, ".flp");
             Artifacts.VerifyProject(source);
             File.Copy(source, path, overwrite: false);
             expectedProject = path;
+            attachedProject = null;
+            attachmentPaths = null;
+            leaseToken = null;
+            ownership = SessionOwnership.Owned;
             token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             authoring?.Dispose();
             authoring = null;
-            authoring = processes.Start(LaunchCommands.Authoring(settings.Executable!, path, paths.Root, token));
+            embeddedCompletionUnknown = false;
+            authoring = processes.Start(LaunchCommands.Authoring(settings.Executable!, path, paths.Root, token,
+                settings.ResolvePythonRuntime(), settings.ResolvePythonPackage()));
             launched = true;
             return await AwaitReadyAsync(timeoutSeconds, ct).ConfigureAwait(false);
         }
@@ -48,6 +55,8 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (ownership == SessionOwnership.Attached && operation == "status")
+                return await CallCoreAsync("status", args, 5, ct).ConfigureAwait(false);
             await RequireProjectIdentityAsync(ct).ConfigureAwait(false);
             return await CallCoreAsync(operation, args, 30, ct).ConfigureAwait(false);
         }
@@ -71,6 +80,7 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            RequireOwnedLifecycle("render");
             var output = paths.NewFile(outputPath, ".wav");
             var snapshotName = Path.Combine("snapshots", Guid.NewGuid().ToString("N"), Path.GetFileNameWithoutExtension(output) + ".flp");
             var snapshot = await SaveCoreAsync(snapshotName, ct).ConfigureAwait(false);
@@ -100,6 +110,7 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            RequireOwnedLifecycle("close");
             var path = await SaveCoreAsync(projectPath, ct).ConfigureAwait(false);
             StopAuthoring();
             return new { project = path, sessionClosed = true };
@@ -131,9 +142,12 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
     {
         try
         {
-            var result = await CallCoreAsync("status", new { }, 1, ct).ConfigureAwait(false);
+            var result = await CallCoreAsync("status", new { }, ownership == SessionOwnership.Attached ? 5 : 1, ct).ConfigureAwait(false);
             var status = result.Deserialize<SessionStatus>(Messages.Json);
             if (status?.ProcessId != authoring!.Id) throw new InvalidDataException("Bridge process identity does not match the launched FL instance.");
+            // The plugin serves one operation at a time: a status reply acknowledges any earlier
+            // embedded invocation has drained, even if that invocation's pipe response was lost.
+            embeddedCompletionUnknown = false;
             return status;
         }
         catch (IOException) { return null; }
@@ -143,8 +157,8 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
     private async Task<string> SaveCoreAsync(string projectPath, CancellationToken ct)
     {
         await RequireProjectIdentityAsync(ct).ConfigureAwait(false);
-        var path = paths.NewFile(projectPath, ".flp");
-        await CallCoreAsync("save", new PathArgs(path), 60, ct).ConfigureAwait(false);
+        var path = (attachmentPaths ?? paths).NewFile(projectPath, ".flp");
+        await CallCoreAsync(ownership == SessionOwnership.Attached ? "snapshot" : "save", new PathArgs(path), 60, ct).ConfigureAwait(false);
         Artifacts.VerifyProject(path);
         return path;
     }
@@ -153,14 +167,18 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
     {
         var status = await TryStatusAsync(ct).ConfigureAwait(false);
         if (status is not { Available: true } || !HasExpectedProject(status))
-            throw new InvalidOperationException("FL no longer reports the expected managed project. No edit or save was attempted.");
+            throw new InvalidOperationException(ownership == SessionOwnership.Attached
+                ? "The attached project changed or FL is unavailable. Call fl_attach again before editing. No edit or save was attempted."
+                : "FL no longer reports the expected managed project. No edit or save was attempted.");
     }
 
     private bool HasExpectedProject(SessionStatus status)
     {
+        if (ownership == SessionOwnership.Attached)
+            return attachedProject?.Matches(ProjectIdentity.FromStatus(status)) == true;
         var line = status.Project.Split('\n').LastOrDefault(value => value.StartsWith("Path: ", StringComparison.Ordinal));
-        if (line is null) return false;
-        var reportedPath = line[6..].Trim();
+        var reportedPath = status.ProjectPath ?? line?[6..].Trim();
+        if (reportedPath is null) return false;
         return Path.IsPathFullyQualified(reportedPath) &&
             string.Equals(Path.GetFullPath(reportedPath), expectedProject, StringComparison.OrdinalIgnoreCase);
     }
@@ -168,17 +186,23 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
     private Task<JsonElement> CallCoreAsync(string operation, object args, int timeoutSeconds, CancellationToken ct)
     {
         if (authoring is null || authoring.HasExited || token is null)
-            throw new InvalidOperationException("No managed FL project is ready. Call fl_project_start first.");
-        return bridge.CallAsync(authoring.Id, token, operation, args, timeoutSeconds, ct);
+            throw new InvalidOperationException("No FL project is connected. Call fl_project_start or fl_instances then fl_attach first.");
+        return ownership == SessionOwnership.Attached
+            ? bridge.CallAttachedAsync(authoring.Id, token, leaseToken!, operation, args, timeoutSeconds, ct)
+            : bridge.CallAsync(authoring.Id, token, operation, args, timeoutSeconds, ct);
     }
 
     private void StopAuthoring()
     {
+        RequireOwnedLifecycle("stop");
+        if (embeddedCompletionUnknown && authoring is { HasExited: false })
+            throw new InvalidOperationException("Embedded Python completion is unconfirmed. FL was left running; reconnect and obtain status before closing it.");
         authoring?.Terminate();
         authoring?.Dispose();
         authoring = null;
         token = null;
         expectedProject = null;
+        ownership = SessionOwnership.None;
     }
 
     private static void ValidateTimeout(int seconds, int maximum)
@@ -189,7 +213,16 @@ public sealed class ManagedSession(ServerSettings settings, IProcessHost process
     public async ValueTask DisposeAsync()
     {
         await gate.WaitAsync().ConfigureAwait(false);
-        try { StopAuthoring(); }
+        try
+        {
+            if (ownership == SessionOwnership.Attached)
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try { await DetachCoreAsync(timeout.Token).ConfigureAwait(false); }
+                catch (Exception) { ResetAttachment(); } // Never terminate user FL, including a disconnected lease.
+            }
+            else StopAuthoring();
+        }
         finally { gate.Release(); }
     }
 }
