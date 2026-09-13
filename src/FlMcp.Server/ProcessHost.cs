@@ -8,6 +8,8 @@ public interface IManagedProcess : IDisposable
     bool HasExited { get; }
     int ExitCode { get; }
     Task WaitForExitAsync(CancellationToken ct);
+    IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) => [];
+    bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) => false;
     void Terminate();
 }
 
@@ -46,6 +48,10 @@ public sealed class ProcessHost : IProcessHost
         public bool HasExited => process.HasExited;
         public int ExitCode => process.ExitCode;
         public Task WaitForExitAsync(CancellationToken ct) => process.WaitForExitAsync(ct);
+        public IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) =>
+            process.HasExited ? [] : WindowsStudioDialogs.Read(process.Id, ct);
+        public bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) =>
+            !process.HasExited && WindowsStudioDialogs.TryClick(process.Id, dialog, button, ct);
         public void Terminate()
         {
             if (process.HasExited) return;

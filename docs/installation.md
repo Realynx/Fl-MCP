@@ -2,7 +2,7 @@
 
 The recommended setup is the **FruityLink framework installer with FLMCP selected**. It installs the framework, FL MCP plugin, companion server, and private Python runtime together.
 
-**Installer availability:** the verified **0.1.22** bundle is locally prepared and has not been published. Obtain that matching bundle from the maintainer. Published installers belong on the [FruityLink releases page](https://github.com/Realynx/FL-Automation/releases). To build your own, use the [developer guide](building.md); do not assume SDK 0.2.0 packages are published on NuGet or PyPI.
+**Installer availability:** the verified **0.1.23** bundle is locally prepared and has not been published. Obtain that matching bundle from the maintainer. Published installers belong on the [FruityLink releases page](https://github.com/Realynx/FL-Automation/releases). To build your own, use the [developer guide](building.md); do not assume SDK 0.2.0 packages are published on NuGet or PyPI.
 
 ## Before you begin
 

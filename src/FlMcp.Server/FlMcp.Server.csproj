@@ -2,7 +2,12 @@
   <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../FlMcp.Protocol/FlMcp.Protocol.csproj" />
+    <PackageReference Include="FruityLink.Core" Version="0.2.0" Condition="'$(FruityLinkSdkRoot)' == ''" />
+    <ProjectReference Include="$(FruityLinkSdkRoot)/src/FruityLink.Core/FruityLink.Core.csproj" Condition="'$(FruityLinkSdkRoot)' != ''" />
     <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
   </ItemGroup>
+  <Target Name="RequireCurrentDialogDiagnosticsSdk" BeforeTargets="PrepareForBuild" Condition="'$(FruityLinkSdkRoot)' == ''">
+    <Error Text="This revision requires SDK dialog diagnostics that are newer than published FruityLink.Core 0.2.0. Set -p:FruityLinkSdkRoot to the FL-Automation checkout identified by SDK_REF. See docs/building.md. No package download can provide this unreleased API yet." />
+  </Target>
 </Project>

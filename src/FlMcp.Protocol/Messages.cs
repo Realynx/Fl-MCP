@@ -14,7 +14,9 @@ public sealed record SessionStatus(bool Available, int ProcessId, string Project
     public bool? Untitled { get; init; }
     public string? Ownership { get; init; }
     public bool RequiresReattach { get; init; }
+    public IReadOnlyList<SessionWarning> Warnings { get; init; } = [];
 }
+public sealed record SessionWarning(string Code, string Message, string OriginalProject, string Diagnostic);
 public sealed record Note(int Channel, int Key, int StartTick, int LengthTick, int Velocity);
 public sealed record TempoArgs(double Bpm);
 public sealed record NameArgs(string Name);

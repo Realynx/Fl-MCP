@@ -2,6 +2,8 @@
 
 This guide is for contributors building the adapter and its distribution package. To install a prepared bundle, start with [installation](installation.md). To edit or preview the documentation site, use [documentation maintenance](documentation.md).
 
+**This revision requires a source SDK checkout.** The dialog inspector is newer than the published Core 0.2.0 API. Pass `FruityLinkSdkRoot` as shown below; the build intentionally reports a clear error without it. Do not replace or republish different package bytes under the existing 0.2.0 version. Package-reference mode can resume after the SDK publishes this API under an appropriate new version and this repository updates its dependencies and locks.
+
 ## Build and install
 
 The new SDK 0.2.0 dependencies are prepared locally and are **not assumed published** to NuGet or PyPI. Build against an explicit SDK checkout containing `src/FruityLink.Scripting` and `python`:
@@ -22,7 +24,7 @@ Selecting MCP clients in the FruityLink installer enables **FL MCP** for that us
 
 FL MCP hosts the shared scripting dispatcher itself. The SDK's separate **Python Scripting** plugin is for standalone Python connections and is not required for MCP-managed scripts.
 
-For a direct source build instead of package references:
+For a direct source build:
 
 ```powershell
 dotnet build FlMcp.slnx -c Release -p:FruityLinkSdkRoot=C:\source\FL-Automation -p:NuGetLockFilePath=obj/source-sdk.packages.lock.json -p:ShouldUnsetParentConfigurationAndPlatform=false
@@ -30,7 +32,7 @@ dotnet build FlMcp.slnx -c Release -p:FruityLinkSdkRoot=C:\source\FL-Automation 
 
 `FruityLinkSdkRoot` must point to the SDK repository root containing `src/FruityLink.Plugins.Abstractions`. The source-build lock file stays under each project's ignored `obj` directory, preserving the package-reference locks. The configuration flag keeps external SDK project references in the requested build configuration.
 
-The tracked NuGet locks currently describe the exact locally prepared SDK 0.2.0 packages. Before enabling a public package-based build or release, regenerate and verify these locks against the actual published SDK artifacts; a later package build may have different content hashes. Source-checkout builds use their separate `obj` locks throughout.
+The tracked package-reference locks are historical and are not a supported build route for this revision. Before enabling package-based builds again, update SDK package versions and regenerate these locks against published artifacts that include the dialog API. Source-checkout builds use their separate `obj` locks throughout.
 
 ## Verification and release status
 

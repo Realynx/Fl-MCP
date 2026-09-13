@@ -9,7 +9,7 @@ public static partial class ToolErrors
     public static async Task<T> Run<T>(Func<Task<T>> action)
     {
         try { return await action().ConfigureAwait(false); }
-        catch (Exception error) when (error is InvalidOperationException or ArgumentException or IOException or TimeoutException)
+        catch (Exception error) when (error is InvalidOperationException or ArgumentException or IOException or InvalidDataException or TimeoutException)
         {
             throw new McpException(PrivateToken().Replace(error.Message, "[redacted]"));
         }

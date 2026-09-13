@@ -66,6 +66,7 @@ nav:
       - Capabilities: capabilities.md
   - Guides:
       - Sessions and configuration: sessions.md
+      - Dialog recovery: dialog-recovery.md
       - Python scripting: python.md
       - Troubleshooting: troubleshooting.md
   - Reference:

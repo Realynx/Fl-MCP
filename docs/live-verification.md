@@ -1,6 +1,18 @@
 # Live verification
 
-Verified on **September 12, 2026**, using FL MCP 0.2.0 with the locally prepared FruityLink installer **0.1.22** and SDK/Python 0.2.0. Installer and SDK version numbers are separate. These are verification records, not an announcement that installers or SDK packages have been publicly released.
+The September 12 checkpoint used FL MCP 0.2.0 with the locally prepared FruityLink installer **0.1.22** and SDK/Python 0.2.0. Installer and SDK version numbers are separate. These are verification records, not an announcement that installers or SDK packages have been publicly released.
+
+## September 13: invalid-note recovery
+
+The installed **0.1.23** framework and MCP recovered a disposable FL 26.1.3.5570 project containing 24 notes with one deliberately invalid channel reference. It accepted only the exact load-recovery prompt, retained the 23 valid notes, saved a snapshot and rendered a 1,536,184-byte WAV. The corrupted source's SHA-256 was unchanged. The successful launch and render both returned recovery warnings with original-copy and diagnostic paths.
+
+A separate installed-build authoring test rejected three invalid channel references and one overflowing note end without partial batch changes. All 24 valid notes, including an edit, survived save/reopen with unchanged properties and rendered successfully. Both tests used disposable fixtures; no user song was modified.
+
+The final policy declines a startup invalid-note save confirmation with **No** because its destination is unconfirmed; it refuses that save confirmation during render. That startup save prompt did not appear in the final successful run. Its No semantics were verified from the native save branch and are covered by policy tests. The exact load prompt uses verified Yes semantics. See [dialog recovery](dialog-recovery.md) for the complete allowlist and ownership rules.
+
+The shared reader passed 18 targeted regression tests covering both exact-build profiles, class/HWND/body ownership, callback identity, bounded Unicode and malformed metadata. The live receipt is SDK `artifacts/note-recovery-20260913/recovery-verification.json`. FL 2025 recovery remains binary- and fixture-verified only.
+
+## September 12 checkpoint
 
 ## Exact-build coverage
 

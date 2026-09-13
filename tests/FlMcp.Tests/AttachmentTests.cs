@@ -276,6 +276,8 @@ public sealed class AttachmentTests
         public bool HasExited => false;
         public int ExitCode => 0;
         public Task WaitForExitAsync(CancellationToken ct) => throw new NotSupportedException();
+        public IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) => throw new InvalidOperationException("Attached windows must never be inspected.");
+        public bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) => throw new InvalidOperationException("Attached windows must never receive automated responses.");
         public void Terminate() => Terminations++;
         public void Dispose() => Disposals++;
     }

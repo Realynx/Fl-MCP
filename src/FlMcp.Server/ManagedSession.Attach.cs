@@ -93,6 +93,7 @@ public sealed partial class ManagedSession
             attachmentPaths = paths;
             ownership = SessionOwnership.Attached;
             embeddedCompletionUnknown = false;
+            launchWarnings = [];
             return new(endpoint.ProcessId, "attached", attachmentPaths.Root, reply.Status);
         }
         catch { observed.Dispose(); throw; }
