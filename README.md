@@ -1,4 +1,27 @@
-# FL MCP
+<div align="center">
+
+<img src="assets/logo.svg" width="80" alt="FL Automate logo" />
+
+<h1>FL MCP</h1>
+
+<p><strong>Connect AI agents to FL Studio.</strong><br/>
+An MCP plugin built on the <a href="https://github.com/Realynx/FL-Automation">FruityLink SDK</a>.</p>
+
+<p>
+<a href="https://github.com/Realynx/Fl-MCP/actions/workflows/ci.yml"><img src="https://github.com/Realynx/Fl-MCP/actions/workflows/ci.yml/badge.svg" alt="Build and test status" /></a>
+<img src="https://img.shields.io/badge/platform-Windows%20x64-d946ef?style=flat-square" alt="Windows x64" />
+<img src="https://img.shields.io/badge/MCP-stdio-22d3ee?style=flat-square" alt="MCP over stdio" />
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8b5cf6?style=flat-square" alt="PolyForm Noncommercial 1.0.0 license" /></a>
+</p>
+
+<p>
+<a href="#get-started">Get started</a> ·
+<a href="#use-the-python-sdk">Python API</a> ·
+<a href="docs/live-verification.md">Verification</a> ·
+<a href="https://github.com/Realynx/FL-Automation">Parent framework</a>
+</p>
+
+</div>
 
 **Make and edit music in FL Studio through an MCP client.** Attach to a project you already have open, or let an agent start a disposable project, author it, save it, and render a WAV.
 
@@ -8,17 +31,20 @@ FL MCP provides **27 MCP tools**, including embedded Python, API discovery, proj
 
 ## Get started
 
-You need Windows x64, licensed FL Studio, and a matching FruityLink installation. FL remains a desktop application and needs a logged-in Windows session. Here, “headless” means no FL MCP plugin window and unattended operation where FL permits it; it does not mean a service, container, or guaranteed invisible application.
+**The easiest setup is the FruityLink framework installer: select FLMCP and click Install.** It installs the framework, plugin, MCP server, and private Python runtime together. You need Windows x64 and a licensed FL Studio installation; no Python or pip setup is needed.
 
-The tested installer is a **locally prepared build, not a public release offered here**. Obtain a matching offline installer from the maintainer, or follow the [source build and developer deployment guide](docs/building.md). SDK 0.2.0 packages are not assumed available on NuGet or PyPI. No FL license, project, instrument, or sample is bundled by this repository.
+1. **Open the framework installer.** Save your work and close FL Studio. Extract the installer bundle, keep its payload folder beside the executable, and run `FruityLink.Installer.exe`.
+2. **Choose your FL installation.** Under **FL STUDIO INSTALL FOLDER**, use **Detect** or **Browse…** to select the folder containing `FL64.exe`, such as `C:\Program Files\Image-Line\FL Studio 2026`.
+3. **Check FLMCP.** Under **PLUGINS TO INSTALL**, keep **FLMCP — MCP server with Python included (PolyForm Noncommercial)** checked. It is selected by default in bundles that include it; other plugin selections are optional.
+4. **Optionally connect your AI app.** Under **CONNECT YOUR AI APPS (OPTIONAL)**, check the clients you use, such as Codex or Claude. The installer enables FLMCP and configures only the selected apps. You can leave **Project defaults (optional)** unchanged.
+5. **Click Install.** Leave **Dry run (preview only)** unchecked for a real installation, approve the Windows administrator prompt if shown, and wait for installation and any selected client setup to finish.
+6. **Restart and connect.** Restart the configured AI apps. Reopen FL Studio to work on an existing project, or leave it closed if you want your agent to start a new disposable project. After future updates, restart FL before using the plugin. Ask your client to read `fl_python_docs`, then follow [Choose a session](#choose-a-session) below.
 
-With the offline FruityLink installer:
+If you skipped AI-app setup, enable **FL MCP** in FruityLink's Plugins menu and configure your client using [examples/mcp-settings.json](examples/mcp-settings.json). Adapt its `mcpServers` wrapper to your client's schema and replace the example paths. [Configuration details](docs/sessions.md#connect-an-mcp-client).
 
-1. Select your FL installation and MCP clients. Client setup enables FL MCP for your user and registers the companion. The installer supplies private CPython 3.14.6 and the matching SDK wheel.
-2. Restart the selected MCP clients. If FL was already running during installation, enable **FL MCP** in FruityLink's Plugins menu or restart FL so it loads the plugin.
-3. Call `fl_python_docs`, then choose an attached or disposable session below.
+**Installer availability:** published framework installers belong on the [FruityLink releases page](https://github.com/Realynx/FL-Automation/releases). The verified **0.1.22** build is currently local and has not been published there; obtain that matching bundle from the maintainer. Developers can use the [source build guide](docs/building.md); SDK 0.2.0 packages are not assumed published to NuGet or PyPI.
 
-Manual client configuration starts from [examples/mcp-settings.json](examples/mcp-settings.json). Adapt its `mcpServers` wrapper to your client's schema and replace every example path. The companion targets .NET 10; the FruityLink plugin host targets .NET 9. [Configuration and runtime details](docs/sessions.md#connect-an-mcp-client).
+FL still needs a logged-in desktop session. “Headless” means no FLMCP plugin window and unattended operation where FL permits it, not a service or container. FL licenses, instruments, projects, and samples are not bundled here. The companion uses .NET 10 and the framework host uses .NET 9; see [runtime requirements](docs/building.md).
 
 ## Choose a session
 

@@ -32,6 +32,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $packageRoot
     }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'examples') -Destination $packageRoot -Recurse
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'assets') -Destination $packageRoot -Recurse
     Copy-Item -LiteralPath (Join-Path $repoRoot 'docs') -Destination $packageRoot -Recurse
     Copy-Item -LiteralPath (Join-Path $repoRoot 'licenses') -Destination $packageRoot -Recurse
     $pythonTarget = Join-Path $packageRoot 'python'
