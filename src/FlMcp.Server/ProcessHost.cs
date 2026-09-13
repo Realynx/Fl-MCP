@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Diagnostics;
+using FruityLink.Core.Hosting;
 
 namespace FlMcp.Server;
 
@@ -10,13 +12,14 @@ public interface IManagedProcess : IDisposable
     Task WaitForExitAsync(CancellationToken ct);
     IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) => [];
     bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) => false;
+    void CompleteStartup() { }
     void Terminate();
 }
 
 public interface IProcessHost
 {
     bool HasRunningStudio();
-    IManagedProcess Start(ProcessStartInfo startInfo);
+    IManagedProcess Start(ProcessStartInfo startInfo, bool background = false, CancellationToken ct = default);
     IReadOnlyList<int> ListStudioProcessIds() => [];
     IManagedProcess Observe(int processId) => throw new NotSupportedException("This host cannot observe existing processes.");
 }
@@ -39,10 +42,49 @@ public sealed class ProcessHost : IProcessHost
         return found;
     }
 
-    public IManagedProcess Start(ProcessStartInfo startInfo) =>
-        new ManagedProcess(Process.Start(startInfo) ?? throw new IOException("FL Studio did not start."));
+    public IManagedProcess Start(ProcessStartInfo startInfo, bool background = false, CancellationToken ct = default) => background
+        ? new BackgroundManagedProcess(FlStudioProcessLauncher.Start(ToLaunchOptions(startInfo), ct))
+        : new InteractiveManagedProcess(Process.Start(startInfo) ?? throw new IOException("FL Studio did not start."));
 
-    private sealed class ManagedProcess(Process process) : IManagedProcess
+    private static FlStudioLaunchOptions ToLaunchOptions(ProcessStartInfo startInfo)
+    {
+        var environment = startInfo.Environment.ToDictionary(pair => pair.Key, pair => (string?)pair.Value,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (DictionaryEntry inherited in Environment.GetEnvironmentVariables())
+        {
+            var name = (string)inherited.Key;
+            if (!startInfo.Environment.ContainsKey(name)) environment[name] = null;
+        }
+        return new(startInfo.FileName)
+        {
+            Arguments = startInfo.ArgumentList.ToArray(),
+            WorkingDirectory = startInfo.WorkingDirectory,
+            Environment = environment,
+            Mode = FlStudioLaunchMode.PrivateDesktop,
+            ShutdownTimeout = TimeSpan.FromSeconds(5)
+        };
+    }
+
+    private sealed class BackgroundManagedProcess(FlStudioProcessLease process) : IManagedProcess
+    {
+        public int Id => process.ProcessId;
+        public bool HasExited => process.HasExited;
+        public int ExitCode => process.ExitCode ?? throw new InvalidOperationException("FL Studio has not exited.");
+        public Task WaitForExitAsync(CancellationToken ct) => process.WaitForExitAsync(ct);
+        public IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) =>
+            process.HasExited ? [] : WindowsStudioDialogs.Read(process.ProcessId, process.ReadWindows(ct), ct);
+        public bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) =>
+            !process.HasExited && WindowsStudioDialogs.TryClick(process.ProcessId, dialog, button, ct);
+        public void CompleteStartup() => process.CompleteStartup();
+        public void Terminate()
+        {
+            if (process.HasExited) return;
+            process.TerminateAsync().GetAwaiter().GetResult();
+        }
+        public void Dispose() => process.Dispose();
+    }
+
+    private sealed class InteractiveManagedProcess(Process process) : IManagedProcess
     {
         public int Id => process.Id;
         public bool HasExited => process.HasExited;

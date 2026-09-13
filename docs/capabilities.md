@@ -30,7 +30,7 @@ The [live verification record](live-verification.md) contains measurements, repr
 
 ## Limits to plan around
 
-- **Session ownership:** attached FL processes stay user-owned. Close/render require a disposable session, and disposable startup requires other FL processes to be closed.
+- **Session ownership:** attached FL processes stay user-owned. Close/render require a disposable session. Interactive startup requires other FL processes to be closed; background startup uses a private Windows desktop and can run beside independent sessions.
 - **Project identity:** detectable project changes require reattachment. Concurrent human edits and identical untitled replacements cannot be made transactional.
 - **Execution:** Python runs inside FL with the account's permissions. Deadlines request cooperative cancellation; blocking native calls can delay completion. Completed edits remain.
 - **Output:** use fresh paths inside the workspace. Rendering validates WAV RIFF files below 4 GiB, not RF64 or other export formats, and waits for the renderer process to exit.

@@ -4,6 +4,10 @@ The September 12 checkpoint used FL MCP 0.2.0 with the locally prepared FruityLi
 
 ## September 13: invalid-note recovery
 
+The background-mode follow-up used the SDK private-desktop launcher with serialized cold starts. Two independent MCP clients held live FL 26.1.3.5570 authoring sessions simultaneously, each authored 24 notes and a playlist clip, and each rendered a 1,536,184-byte stereo float32 WAV at 48 kHz (192,000 frames). Neither owned PID appeared in the controller's active-desktop window enumeration. The damaged-copy recovery fixture also passed in background mode, retaining 23 valid notes and leaving its source SHA-256 unchanged. All owned jobs closed without cleanup errors. Receipts are SDK `artifacts/background-20260913/live-verification.json` and its accompanying per-client reports.
+
+The SDK also passed standalone Python save/reopen/render tests without MCP and a separate Serum 2 export. Background means normal FL on a private Windows desktop; it does not remove the internal GUI renderer. Independent clients can run concurrent jobs, but each MCP client still manages one owned session at a time.
+
 The installed **0.1.23** framework and MCP recovered a disposable FL 26.1.3.5570 project containing 24 notes with one deliberately invalid channel reference. It accepted only the exact load-recovery prompt, retained the 23 valid notes, saved a snapshot and rendered a 1,536,184-byte WAV. The corrupted source's SHA-256 was unchanged. The successful launch and render both returned recovery warnings with original-copy and diagnostic paths.
 
 A separate installed-build authoring test rejected three invalid channel references and one overflowing note end without partial batch changes. All 24 valid notes, including an edit, survived save/reopen with unchanged properties and rendered successfully. Both tests used disposable fixtures; no user song was modified.

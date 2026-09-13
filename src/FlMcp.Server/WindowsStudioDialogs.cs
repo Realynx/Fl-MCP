@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using FruityLink.Core.Diagnostics;
+using FruityLink.Core.Hosting;
 
 namespace FlMcp.Server;
 
@@ -15,15 +16,26 @@ internal static class WindowsStudioDialogs
     private static readonly HashSet<string> TextClasses = new(StringComparer.OrdinalIgnoreCase)
         { "Static", "TLabel", "TStaticText", "TNewLabel", "TPanel" };
 
-    internal static IReadOnlyList<StudioDialog> Read(int processId, CancellationToken ct)
+    internal static IReadOnlyList<StudioDialog> Read(int processId, CancellationToken ct) =>
+        Read(processId, null, ct);
+
+    internal static IReadOnlyList<StudioDialog> Read(int processId,
+        IReadOnlyList<FlStudioWindowSnapshot>? snapshots, CancellationToken ct)
     {
         var windows = new List<nint>();
-        EnumWindows((window, _) =>
+        if (snapshots is not null)
         {
-            if (windows.Count >= 16) return false;
-            if (IsModal(window, processId)) windows.Add(window);
-            return true;
-        }, 0);
+            windows.AddRange(snapshots.Where(window => IsModal(window, processId)).Take(16).Select(window => window.Window));
+        }
+        else
+        {
+            EnumWindows((window, _) =>
+            {
+                if (windows.Count >= 16) return false;
+                if (IsModal(window, processId)) windows.Add(window);
+                return true;
+            }, 0);
+        }
         var result = new List<StudioDialog>();
         var elapsed = Stopwatch.StartNew();
         foreach (var window in windows)
@@ -109,6 +121,10 @@ internal static class WindowsStudioDialogs
         if (owner != 0 && BelongsTo(owner, processId) && !IsWindowEnabled(owner)) return true;
         return ClassName(window) == "#32770";
     }
+
+    private static bool IsModal(FlStudioWindowSnapshot window, int processId) =>
+        window.ProcessId == processId && window.Visible && window.Enabled &&
+        ((window.Owner != 0 && !window.OwnerEnabled) || window.ClassName == "#32770");
 
     private static bool BelongsTo(nint window, int processId) =>
         IsWindow(window) && GetWindowThreadProcessId(window, out var pid) != 0 && pid == processId;

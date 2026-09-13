@@ -25,7 +25,7 @@ For a standalone Python application or a C# plugin, start with the [FruityLink S
 
 ## Current availability
 
-The verified installer **0.1.23** is currently local and has not been published. Obtain the matching bundle from the maintainer or follow the [source build guide](building.md). The [framework releases page](https://github.com/Realynx/FL-Automation/releases) is the destination for published installers; SDK 0.2.0 packages are not assumed published to NuGet or PyPI.
+The verified installer **0.1.26** is currently local and has not been published. Obtain the matching bundle from the maintainer or follow the [source build guide](building.md). The [framework releases page](https://github.com/Realynx/FL-Automation/releases) is the destination for published installers; SDK 0.2.0 packages are not assumed published to NuGet or PyPI.
 
 Live verification covers **FL Studio 26.1.3.5570 on Windows x64**. Capabilities depend on exact native builds. Read the [compatibility summary](capabilities.md#compatibility) before choosing an installation, and the [verification record](live-verification.md) for measured results and unresolved limits.
 

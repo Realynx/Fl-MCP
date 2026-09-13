@@ -19,6 +19,46 @@ public sealed class SessionTests
     }
 
     [Fact]
+    public async Task BackgroundSessionCanLaunchBesideOtherStudioProcesses()
+    {
+        using var fixture = new Fixture();
+        fixture.Processes.ExistingStudio = true;
+        await using var session = fixture.Session();
+        await session.LaunchAsync("background.flp", 1, CancellationToken.None, background: true);
+
+        var launched = Assert.Single(fixture.Processes.Started);
+        Assert.True(launched.Background);
+        Assert.Equal(1, launched.Process.StartupCompletions);
+    }
+
+    [Fact]
+    public async Task BackgroundSessionKeepsRenderOnPrivateDesktop()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("background.flp", 1, CancellationToken.None, background: true);
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("background.wav"));
+
+        await session.RenderAsync("background.wav", 1, CancellationToken.None);
+
+        Assert.Equal(2, fixture.Processes.Started.Count);
+        Assert.All(fixture.Processes.Started, launched => Assert.True(launched.Background));
+    }
+
+    [Fact]
+    public async Task BackgroundStartupGateUsesProjectDeadline()
+    {
+        using var fixture = new Fixture();
+        fixture.Processes.BlockStart = true;
+        await using var session = fixture.Session();
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            session.LaunchAsync("background.flp", 1, CancellationToken.None, background: true));
+
+        Assert.Empty(fixture.Processes.Started);
+    }
+
+    [Fact]
     public async Task SecondLaunchDoesNotStopTheAlreadyManagedSession()
     {
         using var fixture = new Fixture();
@@ -37,7 +77,9 @@ public sealed class SessionTests
         fixture.Bridge.Available = false;
         await using var session = fixture.Session();
         await Assert.ThrowsAsync<TimeoutException>(() => session.LaunchAsync("fresh.flp", 1, CancellationToken.None));
-        Assert.True(Assert.Single(fixture.Processes.Started).Process.Terminated);
+        var launched = Assert.Single(fixture.Processes.Started).Process;
+        Assert.True(launched.Terminated);
+        Assert.Equal(0, launched.StartupCompletions);
     }
 
     [Fact]
@@ -296,19 +338,25 @@ public sealed class SessionTests
     {
         public bool ExistingStudio { get; set; }
         public bool HangRender { get; set; }
+        public bool BlockStart { get; set; }
         public Action<ProcessStartInfo>? OnRenderExit { get; set; }
         public Action<ProcessStartInfo>? OnStart { get; set; }
-        public List<(ProcessStartInfo Info, FakeProcess Process)> Started { get; } = [];
+        public List<(ProcessStartInfo Info, FakeProcess Process, bool Background)> Started { get; } = [];
         public bool HasRunningStudio() => ExistingStudio;
-        public IManagedProcess Start(ProcessStartInfo info)
+        public IManagedProcess Start(ProcessStartInfo info, bool background = false, CancellationToken ct = default)
         {
+            if (BlockStart)
+            {
+                ct.WaitHandle.WaitOne();
+                ct.ThrowIfCancellationRequested();
+            }
             OnStart?.Invoke(info);
             var process = new FakeProcess(100 + Started.Count, async ct =>
             {
                 if (HangRender) await Task.Delay(Timeout.InfiniteTimeSpan, ct);
                 OnRenderExit?.Invoke(info);
             });
-            Started.Add((info, process));
+            Started.Add((info, process, background));
             return process;
         }
     }
@@ -317,9 +365,11 @@ public sealed class SessionTests
     {
         public int Id => id;
         public bool Terminated { get; private set; }
+        public int StartupCompletions { get; private set; }
         public bool HasExited => Terminated;
         public int ExitCode => 0;
         public Task WaitForExitAsync(CancellationToken ct) => wait(ct);
+        public void CompleteStartup() => StartupCompletions++;
         public void Terminate() => Terminated = true;
         public void Dispose() { }
     }

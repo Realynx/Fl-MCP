@@ -43,6 +43,58 @@ public sealed class OwnedDialogTests
     }
 
     [Fact]
+    public void RenderProgressIsIgnoredWithoutReceivingInput()
+    {
+        using var files = new TestFiles();
+        var monitor = new OwnedDialogMonitor(new(files.Root), files.Project(), "Render");
+        var process = new DialogProcess { Dialogs = [RenderProgress(100)] };
+
+        Assert.False(monitor.Inspect(process, CancellationToken.None));
+        Assert.Equal(0, process.Responses);
+        Assert.Empty(monitor.Warnings);
+    }
+
+    [Fact]
+    public void RenderProgressClassIsNotIgnoredDuringAuthoring()
+    {
+        using var files = new TestFiles();
+        var monitor = new OwnedDialogMonitor(new(files.Root), files.Project(), "Launch");
+        var process = new DialogProcess { Dialogs = [RenderProgress(100)] };
+
+        Assert.Throws<IOException>(() => monitor.Inspect(process, CancellationToken.None));
+        Assert.Equal(0, process.Responses);
+    }
+
+    [Fact]
+    public void RenderProgressDoesNotHideAnotherActionableDialog()
+    {
+        using var files = new TestFiles();
+        var monitor = new OwnedDialogMonitor(new(files.Root), files.Project(), "Render");
+        var process = new DialogProcess
+        {
+            Dialogs = [RenderProgress(100), Dialog(100, "Invalid data", InvalidNotesDialog.LoadPrompt)]
+        };
+
+        Assert.True(monitor.Inspect(process, CancellationToken.None));
+        Assert.Equal(1, process.Responses);
+        Assert.Equal(6, process.LastResponse);
+    }
+
+    [Fact]
+    public void RenderProgressDoesNotHideUnknownDialog()
+    {
+        using var files = new TestFiles();
+        var monitor = new OwnedDialogMonitor(new(files.Root), files.Project(), "Render");
+        var process = new DialogProcess
+        {
+            Dialogs = [RenderProgress(100), Dialog(100, "Render error", "A plugin failed to load.")]
+        };
+
+        Assert.Throws<IOException>(() => monitor.Inspect(process, CancellationToken.None));
+        Assert.Equal(0, process.Responses);
+    }
+
+    [Fact]
     public void SpoofedProcessCannotReceiveAResponse()
     {
         using var files = new TestFiles();
@@ -212,10 +264,14 @@ public sealed class OwnedDialogTests
     private static StudioDialog Dialog(int pid, string title, string text) =>
         new(123, pid, "#32770", title, [text], [new(124, 6, "&Yes"), new(125, 7, "&No")]);
 
+    private static StudioDialog RenderProgress(int pid) =>
+        new(321, pid, "TWAVRenderForm", "Rendering to \ue409render.wav", [], []);
+
     private sealed class DialogProcess : IManagedProcess
     {
         public int Id { get; init; } = 100;
         public StudioDialog? Dialog { get; set; }
+        public IReadOnlyList<StudioDialog>? Dialogs { get; init; }
         public int Responses { get; private set; }
         public int? LastResponse { get; private set; }
         public Action? BeforeResponse { get; set; }
@@ -223,7 +279,7 @@ public sealed class OwnedDialogTests
         public bool HasExited => Terminated;
         public int ExitCode => 0;
         public Task WaitForExitAsync(CancellationToken ct) => Task.Delay(Timeout.Infinite, ct);
-        public IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) => Dialog is null ? [] : [Dialog];
+        public IReadOnlyList<StudioDialog> ReadDialogs(CancellationToken ct) => Dialogs ?? (Dialog is null ? [] : [Dialog]);
         public bool TryRespondToDialog(StudioDialog dialog, StudioDialogButton button, CancellationToken ct) { BeforeResponse?.Invoke(); Responses++; LastResponse = button.Id; Dialog = null; return true; }
         public void Terminate() => Terminated = true;
         public void Dispose() { }
@@ -237,7 +293,7 @@ public sealed class OwnedDialogTests
         public string? RenderProject { get; private set; }
         public List<DialogProcess> Started { get; } = [];
         public bool HasRunningStudio() => false;
-        public IManagedProcess Start(ProcessStartInfo startInfo)
+        public IManagedProcess Start(ProcessStartInfo startInfo, bool background = false, CancellationToken ct = default)
         {
             var render = startInfo.ArgumentList[0] == "/R";
             if (render) RenderProject = startInfo.ArgumentList[^1];

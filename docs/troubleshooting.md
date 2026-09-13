@@ -19,7 +19,7 @@ For exact environment settings and runtime overrides, read [connect an MCP clien
 
 | Symptom | Check and next step |
 | --- | --- |
-| `fl_project_start` refuses to launch | Close other FL processes. Disposable startup does not reuse your personal session. Check that the executable and saved `.flp` template exist at absolute paths. |
+| `fl_project_start` refuses to launch | Interactive startup requires other FL processes to be closed. For an isolated private-desktop session, pass `background=true`. Check that the executable and saved `.flp` template exist at absolute paths. |
 | Snapshot/render path refused | Use a new path inside `FL_MCP_WORKSPACE` with the correct `.flp` or `.wav` extension. Existing files, traversal, device names, alternate data streams, and symlink/junction traversal are refused. |
 | A sample cannot be loaded | Stage the existing WAV inside the configured workspace, then pass its workspace path. Confirm the selected FL project is still attached and ready. |
 | Close/render is refused while attached | Save a snapshot, detach, close FL yourself, then start a disposable copy of the snapshot using `sourceProjectPath`. |

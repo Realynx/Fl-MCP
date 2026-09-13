@@ -236,7 +236,7 @@ public sealed class AttachmentTests
         public bool HasRunningStudio() => true;
         public IReadOnlyList<int> ListStudioProcessIds() => [Environment.ProcessId];
         public IManagedProcess Observe(int pid) => Process;
-        public IManagedProcess Start(ProcessStartInfo info) => throw new InvalidOperationException("Must not start FL in an attachment test.");
+        public IManagedProcess Start(ProcessStartInfo info, bool background = false, CancellationToken ct = default) => throw new InvalidOperationException("Must not start FL in an attachment test.");
         public async Task<JsonElement> CallAsync(int processId, string token, string operation, object arguments, int timeoutSeconds, CancellationToken ct)
         {
             Assert.Equal(Endpoint.Token, token);

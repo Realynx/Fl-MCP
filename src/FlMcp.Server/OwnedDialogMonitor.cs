@@ -44,9 +44,10 @@ public sealed partial class OwnedDialogMonitor
         ct.ThrowIfCancellationRequested();
         var dialogs = process.ReadDialogs(ct);
         if (dialogs.Count == 0) return false;
-        var dialog = dialogs[0];
-        if (dialog.ProcessId != process.Id)
+        if (dialogs.Any(dialog => dialog.ProcessId != process.Id))
             throw new IOException("Dialog process identity did not match the owned FL process. No response was sent.");
+        var dialog = dialogs.FirstOrDefault(dialog => !IsRenderProgress(dialog));
+        if (dialog is null) return false;
         if (Initializing(dialog)) return true;
         if (answeredDialog is not null && SameDialog(dialog, answeredDialog))
         {
@@ -70,6 +71,9 @@ public sealed partial class OwnedDialogMonitor
             : new("invalid-notes-recovery", "Accepted FL's exact request to delete invalid notes while loading a disposable copy. Compare the resulting notes with the preserved original before continuing.", OriginalProject, diagnostic));
         return true;
     }
+
+    private bool IsRenderProgress(StudioDialog dialog) => phase == "Render" &&
+        dialog.WindowClass == "TWAVRenderForm" && dialog.Title.StartsWith("Rendering to ", StringComparison.Ordinal);
 
     private bool Initializing(StudioDialog dialog)
     {

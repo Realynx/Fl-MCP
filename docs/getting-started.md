@@ -47,7 +47,7 @@ An attached session belongs to you. The companion refuses `fl_project_close` and
 
 ## Create and render a disposable project
 
-Set `FL_MCP_TEMPLATE` to a saved `.flp` and close all other FL processes. Start with an empty template to make the result easy to inspect. All output paths below are relative to your workspace and must be new.
+Set `FL_MCP_TEMPLATE` to a saved `.flp`. Start with an empty template to make the result easy to inspect. Close all other FL processes for the default interactive launch, or pass `background=true` to run the disposable session on a private Windows desktop. All output paths below are relative to your workspace and must be new.
 
 1. Call `fl_project_start` with `{"projectPath": "sessions/four-beats.flp"}`. Wait for readiness and inspect the returned tempo and PPQ.
 2. Call `fl_plugins_list` to discover generators. Choose an exact installed name, and query `fl_playlist_list` to choose a playlist track.

@@ -27,7 +27,7 @@ Work on an open FL Studio project, or let an agent start a disposable project, a
 
 The recommended setup is the FruityLink framework installer with **FLMCP** selected. You need Windows x64, a licensed compatible FL Studio installation, and an interactive desktop session. The installer bundles private Python; FL MCP does not need system Python, pip, or its own AI provider key.
 
-**Availability:** the verified installer **0.1.23** is locally prepared and has not been published; obtain a matching bundle from the maintainer or use the source build guide. Published installers belong on the [framework releases page](https://github.com/Realynx/FL-Automation/releases). SDK 0.2.0 packages are not assumed available on NuGet or PyPI.
+**Availability:** the verified installer **0.1.26** is locally prepared and has not been published; obtain a matching bundle from the maintainer or use the source build guide. Published installers belong on the [framework releases page](https://github.com/Realynx/FL-Automation/releases). SDK 0.2.0 packages are not assumed available on NuGet or PyPI.
 
 **Compatibility:** live verification covers FL Studio **26.1.3.5570**. Other exact builds need their own validation; FL 2025 has automated/binary coverage but no live run in this cycle. See [capabilities and limits](docs/capabilities.md) and [verification evidence](docs/live-verification.md).
 

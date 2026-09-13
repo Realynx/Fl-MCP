@@ -11,7 +11,7 @@ These are the **27 tools** currently declared in [FlTools.cs](https://github.com
 | `fl_instances` | None | Lists discoverable enabled FL instances matching the configured executable; does not attach. |
 | `fl_attach` | `processId` | Selects that process's current project and acquires an exclusive attachment lease. Supports untitled projects. |
 | `fl_detach` | None | Releases an attached lease and leaves FL open; waits for prior execution to drain. |
-| `fl_project_start` | `projectPath`, `timeoutSeconds=120`, `sourceProjectPath=null` | Starts a disposable copy of the configured template or an existing workspace snapshot. Requires no other FL processes. Maximum timeout: 300 seconds. |
+| `fl_project_start` | `projectPath`, `timeoutSeconds=120`, `sourceProjectPath=null`, `background=false` | Starts a disposable copy of the configured template or an existing workspace snapshot. Interactive mode requires no other FL processes. Background mode runs on a private Windows desktop and supports parallel sessions from independent MCP clients. Maximum timeout: 300 seconds. |
 | `fl_status` | None | Reads process/bridge identity, project metadata, tempo, and PPQ. A detected project change reports `requiresReattach`. |
 | `fl_project_save` | `projectPath` | Writes a verified new `.flp` snapshot without changing active project identity. Attached saves preserve playback/song mode. |
 | `fl_project_close` | `projectPath` | Saves to a new `.flp`, verifies it, then terminates the disposable editor. Refuses attached sessions. |

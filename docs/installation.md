@@ -2,7 +2,7 @@
 
 The recommended setup is the **FruityLink framework installer with FLMCP selected**. It installs the framework, FL MCP plugin, companion server, and private Python runtime together.
 
-**Installer availability:** the verified **0.1.23** bundle is locally prepared and has not been published. Obtain that matching bundle from the maintainer. Published installers belong on the [FruityLink releases page](https://github.com/Realynx/FL-Automation/releases). To build your own, use the [developer guide](building.md); do not assume SDK 0.2.0 packages are published on NuGet or PyPI.
+**Installer availability:** the verified **0.1.26** bundle is locally prepared and has not been published. Obtain that matching bundle from the maintainer. Published installers belong on the [FruityLink releases page](https://github.com/Realynx/FL-Automation/releases). To build your own, use the [developer guide](building.md); do not assume SDK 0.2.0 packages are published on NuGet or PyPI.
 
 ## Before you begin
 
@@ -51,6 +51,6 @@ The current workflow requires an interactive Windows desktop session. “Headles
 
 ## Prepare disposable projects
 
-To let an agent author and render a separate project, save an FL template as a real `.flp` file and point `FL_MCP_TEMPLATE` to its absolute path. Choose a workspace for snapshots and audio, and close all other FL processes before calling `fl_project_start`.
+To let an agent author and render a separate project, save an FL template as a real `.flp` file and point `FL_MCP_TEMPLATE` to its absolute path. Choose a workspace for snapshots and audio. Close all other FL processes before the default interactive `fl_project_start`, or pass `background=true` to use a private Windows desktop.
 
 The template provides actual tempo, PPQ, export settings, and initial content. The agent must query the loaded project instead of assuming a particular blank template. Follow the [disposable-project walkthrough](getting-started.md#create-and-render-a-disposable-project).

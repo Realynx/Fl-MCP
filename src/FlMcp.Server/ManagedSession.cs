@@ -14,8 +14,10 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
     private string? expectedProject;
     private bool embeddedCompletionUnknown;
     private IReadOnlyList<SessionWarning> launchWarnings = [];
+    private bool ownedBackground;
 
-    public async Task<SessionStatus> LaunchAsync(string projectPath, int timeoutSeconds, CancellationToken ct, string? sourceProjectPath = null)
+    public async Task<SessionStatus> LaunchAsync(string projectPath, int timeoutSeconds, CancellationToken ct,
+        string? sourceProjectPath = null, bool background = false)
     {
         ValidateTimeout(timeoutSeconds, 300);
         await gate.WaitAsync(ct).ConfigureAwait(false);
@@ -24,7 +26,7 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         {
             settings.ValidateLaunch();
             if (authoring is { HasExited: false }) throw new InvalidOperationException("An FL session is already connected. Detach it or save/close a disposable session before starting another.");
-            if (processes.HasRunningStudio()) throw new InvalidOperationException("Close other FL Studio processes first. FL MCP will not reuse a personal session.");
+            if (!background && processes.HasRunningStudio()) throw new InvalidOperationException("Close other FL Studio processes first. FL MCP will not reuse a personal session.");
             var path = paths.NewFile(projectPath, ".flp");
             var source = sourceProjectPath is null ? settings.Template! : paths.Resolve(sourceProjectPath, ".flp");
             Artifacts.VerifyProject(source);
@@ -35,15 +37,25 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             attachmentPaths = null;
             leaseToken = null;
             ownership = SessionOwnership.Owned;
+            ownedBackground = background;
             token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             authoring?.Dispose();
             authoring = null;
             embeddedCompletionUnknown = false;
             launchWarnings = [];
-            authoring = processes.Start(LaunchCommands.Authoring(settings.Executable!, path, paths.Root, token,
-                settings.ResolvePythonRuntime(), settings.ResolvePythonPackage()));
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            try
+            {
+                authoring = processes.Start(LaunchCommands.Authoring(settings.Executable!, path, paths.Root, token,
+                    settings.ResolvePythonRuntime(), settings.ResolvePythonPackage()), background, deadline.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ReadinessTimeout(dialogs);
+            }
             launched = true;
-            var status = await AwaitReadyAsync(timeoutSeconds, dialogs, ct).ConfigureAwait(false);
+            var status = await AwaitReadyAsync(dialogs, deadline.Token, ct).ConfigureAwait(false);
             launchWarnings = dialogs.Warnings;
             return status with { Warnings = launchWarnings };
         }
@@ -93,12 +105,14 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             var snapshotName = Path.Combine("snapshots", Guid.NewGuid().ToString("N"), Path.GetFileNameWithoutExtension(output) + ".flp");
             var snapshot = await SaveCoreAsync(snapshotName, ct).ConfigureAwait(false);
             var dialogs = new OwnedDialogMonitor(paths, snapshot, "Render");
+            var renderInBackground = ownedBackground;
             // The owned editor is disposable; snapshot validity is checked before its process is stopped.
             StopAuthoring();
-            if (processes.HasRunningStudio()) throw new InvalidOperationException($"Another FL process is running. Snapshot preserved at {snapshot}; close it before retrying.");
-            using var render = processes.Start(LaunchCommands.Render(settings.Executable!, snapshot, Path.GetDirectoryName(output)!));
+            if (!renderInBackground && processes.HasRunningStudio()) throw new InvalidOperationException($"Another FL process is running. Snapshot preserved at {snapshot}; close it before retrying.");
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+            using var render = processes.Start(LaunchCommands.Render(settings.Executable!, snapshot, Path.GetDirectoryName(output)!),
+                renderInBackground, deadline.Token);
             try
             {
                 await AwaitRenderAsync(render, dialogs, deadline.Token).ConfigureAwait(false);
@@ -128,28 +142,34 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         finally { gate.Release(); }
     }
 
-    private async Task<SessionStatus> AwaitReadyAsync(int timeoutSeconds, OwnedDialogMonitor dialogs, CancellationToken ct)
+    private async Task<SessionStatus> AwaitReadyAsync(OwnedDialogMonitor dialogs, CancellationToken deadline,
+        CancellationToken callerCancellation)
     {
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         try
         {
             while (true)
             {
                 if (authoring!.HasExited) throw new IOException($"FL Studio exited before the plugin was ready. Check installation and enabled plugin state. Original project: {dialogs.OriginalProject}");
-                if (!dialogs.Inspect(authoring, deadline.Token))
+                if (!dialogs.Inspect(authoring, deadline))
                 {
-                    var status = await TryStatusAsync(deadline.Token).ConfigureAwait(false);
-                    if (status is { Available: true } && HasExpectedProject(status)) return status;
+                    var status = await TryStatusAsync(deadline).ConfigureAwait(false);
+                    if (status is { Available: true } && HasExpectedProject(status))
+                    {
+                        authoring.CompleteStartup();
+                        return status;
+                    }
                 }
-                await Task.Delay(250, deadline.Token).ConfigureAwait(false);
+                await Task.Delay(250, deadline).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (!callerCancellation.IsCancellationRequested)
         {
-            throw new TimeoutException($"FL MCP was not ready before the deadline. Install FruityLink and enable FL MCP once in its Plugins menu; check the host log for build support. Original project: {dialogs.OriginalProject}");
+            throw ReadinessTimeout(dialogs);
         }
     }
+
+    private static TimeoutException ReadinessTimeout(OwnedDialogMonitor dialogs) => new(
+        $"FL MCP was not ready before the deadline. Install FruityLink and enable FL MCP once in its Plugins menu; check the host log for build support. Original project: {dialogs.OriginalProject}");
 
     private static async Task AwaitRenderAsync(IManagedProcess render, OwnedDialogMonitor dialogs, CancellationToken ct)
     {
@@ -238,6 +258,7 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         token = null;
         expectedProject = null;
         ownership = SessionOwnership.None;
+        ownedBackground = false;
     }
 
     private static void ValidateTimeout(int seconds, int maximum)

@@ -17,10 +17,11 @@ public sealed class FlTools(ManagedSession session)
     [McpServerTool(Name = "fl_detach"), Description("Release the attached FL lease without closing FL, changing playback or saving. Waits for prior embedded code/native calls to finish. For disposable managed projects use fl_project_close instead.")]
     public Task<object> Detach(CancellationToken ct) => ToolErrors.Run(() => session.DetachAsync(ct));
 
-    [McpServerTool(Name = "fl_project_start"), Description("Start a fresh isolated FL project copied from the configured template. Requires no other FL processes; plugin must have been installed and enabled. Returns readiness, tempo and PPQ. Paths are relative to workspace. Default deadline 120 seconds.")]
+    [McpServerTool(Name = "fl_project_start"), Description("Start a fresh isolated FL project copied from the configured template. Interactive mode requires no other FL processes. Background mode uses a private Windows desktop and permits independent MCP clients to run in parallel. Plugin must have been installed and enabled. Returns readiness, tempo and PPQ. Paths are relative to workspace. Default deadline 120 seconds.")]
     public Task<SessionStatus> Start(string projectPath, CancellationToken ct, int timeoutSeconds = 120,
-        [Description("Optional existing workspace FLP snapshot to resume; copied to projectPath. Omit for a fresh template project.")] string? sourceProjectPath = null) =>
-        ToolErrors.Run(() => session.LaunchAsync(projectPath, timeoutSeconds, ct, sourceProjectPath));
+        [Description("Optional existing workspace FLP snapshot to resume; copied to projectPath. Omit for a fresh template project.")] string? sourceProjectPath = null,
+        [Description("Launch FL on a private Windows desktop. Use this for headless operation and parallel sessions across independent MCP clients.")] bool background = false) =>
+        ToolErrors.Run(() => session.LaunchAsync(projectPath, timeoutSeconds, ct, sourceProjectPath, background));
 
     [McpServerTool(Name = "fl_status", ReadOnly = true), Description("Read connected FL process identity, bridge readiness, project metadata, tempo and PPQ. Timing uses this project's PPQ, never a guessed default.")]
     public Task<JsonElement> Status(CancellationToken ct) => ToolErrors.Run(() => session.CallAsync("status", new { }, ct));
