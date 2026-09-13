@@ -7,20 +7,23 @@
 <img src="https://img.shields.io/badge/platform-Windows%20x64-d946ef?style=flat-square" alt="Windows x64" />
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8b5cf6?style=flat-square" alt="PolyForm Noncommercial license" /></a>
 </p>
+<p><a href="https://realynx.github.io/Fl-MCP/"><strong>Documentation site</strong></a> · <a href="https://realynx.github.io/Fl-MCP/getting-started/">Getting started</a> · <a href="https://realynx.github.io/Fl-MCP/tools/">Tool reference</a></p>
 </div>
 
 Work on an open FL Studio project, or let an agent start a disposable project, author music, save snapshots, and render a WAV. **27 MCP tools** cover discovery, authoring, project management, and embedded Python. The shared FruityLink SDK adds typed access to notes, playlist clips, mixer routing/effects, automation, and offline audio analysis.
 
-**[Start reading the documentation →](docs/index.md)**
+**[Open the documentation site →](https://realynx.github.io/Fl-MCP/)**
+
+[Browse the documentation's Markdown source](docs/index.md).
 
 | I want to… | Start here |
 | --- | --- |
-| Connect my AI app | [Install FL MCP](docs/installation.md) |
-| Try it on my first project | [Getting started](docs/getting-started.md) |
-| Understand sessions and timing | [How it works](docs/concepts.md) |
-| Find a tool or write Python | [Tool reference](docs/tools.md) · [Python guide](docs/python.md) |
-| Build plugins or use the C# SDK | [FruityLink C# SDK](https://github.com/Realynx/FL-Automation/blob/master/docs/csharp/index.md) |
-| Build FL MCP from source | [Developer guide](docs/building.md) |
+| Connect my AI app | [Install FL MCP](https://realynx.github.io/Fl-MCP/installation/) |
+| Try it on my first project | [Getting started](https://realynx.github.io/Fl-MCP/getting-started/) |
+| Understand sessions and timing | [How it works](https://realynx.github.io/Fl-MCP/concepts/) |
+| Find a tool or write Python | [Tool reference](https://realynx.github.io/Fl-MCP/tools/) · [Python guide](https://realynx.github.io/Fl-MCP/python/) |
+| Build plugins or use the C# SDK | [FruityLink C# SDK](https://realynx.github.io/FL-Automation/csharp/) |
+| Build FL MCP from source | [Developer guide](https://realynx.github.io/Fl-MCP/building/) |
 
 The recommended setup is the FruityLink framework installer with **FLMCP** selected. You need Windows x64, a licensed compatible FL Studio installation, and an interactive desktop session. The installer bundles private Python; FL MCP does not need system Python, pip, or its own AI provider key.
 
