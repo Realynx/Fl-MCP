@@ -29,7 +29,7 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             if (!background && processes.HasRunningStudio()) throw new InvalidOperationException("Close other FL Studio processes first. FL MCP will not reuse a personal session.");
             var path = paths.NewFile(projectPath, ".flp");
             var source = sourceProjectPath is null ? settings.Template! : paths.Resolve(sourceProjectPath, ".flp");
-            Artifacts.VerifyProject(source);
+            Artifacts.VerifyProjectSource(source);
             File.Copy(source, path, overwrite: false);
             var dialogs = new OwnedDialogMonitor(paths, path, "Launch");
             expectedProject = path;

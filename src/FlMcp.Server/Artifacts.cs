@@ -4,9 +4,13 @@ namespace FlMcp.Server;
 
 public static class Artifacts
 {
-    public static long VerifyProject(string path)
+    public static long VerifyProject(string path) => VerifyProject(path, FileShare.None);
+
+    internal static long VerifyProjectSource(string path) => VerifyProject(path, FileShare.Read);
+
+    private static long VerifyProject(string path, FileShare share)
     {
-        using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        using var stream = File.Open(path, FileMode.Open, FileAccess.Read, share);
         using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
         if (stream.Length <= 22 || Encoding.ASCII.GetString(reader.ReadBytes(4)) != "FLhd" || reader.ReadUInt32() != 6)
             throw new InvalidDataException("Project has no complete FLhd header.");

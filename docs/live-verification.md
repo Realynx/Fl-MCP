@@ -78,6 +78,8 @@ Use a disposable project and licensed assets. Record the complete FL version, in
 4. In separate disposable projects, verify mixer insertion around routed/effected tracks and automation creation/editing/save/reopen. Render an envelope with a predictable level change and measure both regions.
 5. Attach to saved and untitled user-owned sessions. Check snapshot identity/mode preservation, close/render refusal, exclusive leases, detach/handover, and client exit without terminating FL. Reattach after a detected project change.
 6. Test Python cancellation, then a fresh SDK query. Verify cancellation does not permit later batch mutations or process teardown before active native work drains. Test missing assets and rendering timeouts separately; retain snapshots and inspect state before retrying.
+
+The FL Studio 2026 background-session check found that two cold MCP starts could briefly contend while validating the same installed `Empty.flp` template. Source-project validation now permits concurrent readers; saved outputs and rendered WAVs retain exclusive verification. Repeat the simultaneous-start fixture with a shared template when verifying background concurrency.
 7. Compare explicit audio sections with a reference analyzer. Record requested seconds, actual frames, sample rate, channel attribution, loudness/peak methods, and window settings. Do not compare PSR with peak-minus-RMS.
 
 ## Local evidence and automated checks

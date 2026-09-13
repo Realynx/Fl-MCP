@@ -142,6 +142,20 @@ public sealed class SessionTests
         Assert.False(launch.Environment.ContainsKey("FL_MCP_PYTHON"));
     }
 
+    [Fact]
+    public async Task ConcurrentReaderDoesNotBlockSharedTemplateValidationAndCopy()
+    {
+        using var fixture = new Fixture();
+        using var concurrentReader = new FileStream(fixture.Settings.Template!, FileMode.Open, FileAccess.Read,
+            FileShare.Read);
+        await using var session = fixture.Session();
+
+        await session.LaunchAsync("shared-template-copy.flp", 1, CancellationToken.None);
+
+        var copied = Assert.Single(fixture.Processes.Started).Info.ArgumentList[0];
+        Assert.Equal(File.ReadAllBytes(fixture.Settings.Template!), File.ReadAllBytes(copied));
+    }
+
     private sealed class Fixture : IDisposable
     {
         public TestFiles Files { get; } = new();
