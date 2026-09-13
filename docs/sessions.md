@@ -2,7 +2,9 @@
 
 ## Connect an MCP client
 
-Use [examples/mcp-settings.json](../examples/mcp-settings.json) as the client configuration. Replace the executable, template, workspace, and companion DLL paths with your own absolute paths. The server uses stdio and puts logs on stderr. It does not need an AI provider key or the production AI gateway.
+For a first connection, follow [installation](installation.md) and [getting started](getting-started.md). This page is the detailed reference for ownership, configuration, and recovery.
+
+Use [examples/mcp-settings.json](https://github.com/Realynx/Fl-MCP/blob/master/examples/mcp-settings.json) as the client configuration. Replace the executable, template, workspace, and companion DLL paths with your own absolute paths. The server uses stdio and puts logs on stderr. It does not need an AI provider key or the production AI gateway.
 
 | Setting | Purpose |
 | --- | --- |

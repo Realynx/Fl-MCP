@@ -4,3 +4,9 @@ artifacts/
 TestResults/
 .vs/
 *.user
+
+# Documentation build output
+.docs-venv/
+site/
+
+__pycache__/

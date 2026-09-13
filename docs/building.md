@@ -1,5 +1,7 @@
 # Building and developer deployment
 
+This guide is for contributors building the adapter and its distribution package. To install a prepared bundle, start with [installation](installation.md). To edit or preview the documentation site, use [documentation maintenance](documentation.md).
+
 ## Build and install
 
 The new SDK 0.2.0 dependencies are prepared locally and are **not assumed published** to NuGet or PyPI. Build against an explicit SDK checkout containing `src/FruityLink.Scripting` and `python`:

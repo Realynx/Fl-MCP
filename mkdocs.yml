@@ -1,0 +1,78 @@
+site_name: FL MCP
+site_description: Connect AI clients to FL Studio. Install, attach, create, and render.
+site_url: https://realynx.github.io/Fl-MCP/
+repo_url: https://github.com/Realynx/Fl-MCP
+repo_name: Realynx/Fl-MCP
+edit_uri: edit/master/docs/
+strict: true
+theme:
+  name: material
+  language: en
+  font: false
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+plugins:
+  - search
+hooks:
+  - scripts/docs_hooks.py
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+extra_css:
+  - stylesheets/extra.css
+validation:
+  nav:
+    omitted_files: info
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
+nav:
+  - Start here:
+      - Overview: index.md
+      - Getting started: getting-started.md
+      - Installation: installation.md
+      - How it works: concepts.md
+      - Capabilities: capabilities.md
+  - Guides:
+      - Sessions and configuration: sessions.md
+      - Python scripting: python.md
+      - Troubleshooting: troubleshooting.md
+  - Reference:
+      - MCP tools: tools.md
+      - Verification and limits: live-verification.md
+      - C# and Python SDK: https://github.com/Realynx/FL-Automation/blob/master/docs/index.md
+  - Contribute:
+      - Build from source: building.md
+      - Architecture background: blender-mcp-design.md
+      - Edit and publish documentation: documentation.md
