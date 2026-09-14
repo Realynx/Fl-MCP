@@ -4,6 +4,20 @@ FL MCP lets an AI app work with FL Studio through the Model Context Protocol (MC
 
 Start with one small goal: **connect to an open project and read its channels**. Once that works, the same connection can make edits or execute Python using the FruityLink SDK.
 
+## Hear what it can do
+
+**Ember Tides** is an original future-bass track composed, revised, mixed and mastered entirely
+through FL MCP, one listener request at a time, with every revision verified and measured.
+It is the first track of an album being produced to test the MCP.
+
+<audio controls preload="none" style="width: 100%; max-width: 640px;">
+  <source src="https://github.com/Realynx/Fl-MCP/raw/master/examples/ember-tides/Ember-Tides-final-master.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
+Read [how it was made and what it taught the SDK](album.md), or open the
+[project file and revision history](../examples/ember-tides/README.md).
+
 ## Choose your starting point
 
 | Your goal | Guide |

@@ -18,9 +18,10 @@ An original future-bass track composed, revised, mixed and mastered entirely thr
 embedded Python API, in eighteen small listener-driven revisions with persistence and render
 verification at every step. It is the first track of an album being produced to exercise the MCP.
 
-- **Listen:** [Ember-Tides-final-master.mp3](examples/ember-tides/Ember-Tides-final-master.mp3) (3:20, -14 LUFS, -1 dBTP)
+- **Listen in the browser:** [Album page on the documentation site](https://realynx.github.io/Fl-MCP/album/) (GitHub shows repository audio as a raw file; the site embeds a player)
+- **MP3:** [Ember-Tides-final-master.mp3](examples/ember-tides/Ember-Tides-final-master.mp3) (3:20, -14 LUFS, -1 dBTP)
 - **Project file:** [Ember-Tides.flp](examples/ember-tides/Ember-Tides.flp) (FL Studio 2026, Serum 2, FabFilter; drum samples not included)
-- **Revision history and verification records:** [examples/ember-tides](examples/ember-tides/README.md)
+- **Revision history:** [examples/ember-tides](examples/ember-tides/README.md) · verification records in [examples/ember-tides/records](examples/ember-tides/records)
 
 **[Open the documentation site →](https://realynx.github.io/Fl-MCP/)**
 

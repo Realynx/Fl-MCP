@@ -64,6 +64,8 @@ nav:
       - Installation: installation.md
       - How it works: concepts.md
       - Capabilities: capabilities.md
+  - Examples:
+      - Album: album.md
   - Guides:
       - Sessions and configuration: sessions.md
       - Dialog recovery: dialog-recovery.md

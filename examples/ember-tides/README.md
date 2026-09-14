@@ -3,7 +3,7 @@
 **Final master:** [Ember-Tides-final-master.mp3](Ember-Tides-final-master.mp3) (3:20, -14 LUFS integrated, -1 dBTP).
 **Project file:** [Ember-Tides.flp](Ember-Tides.flp) (FL Studio 2026; Serum 2 and FabFilter plugins; the drum samples
 are commercial and not included, so those channels load silent without them). Verification records for every
-revision are the `verification-*.json` files beside this README.
+revision, the issue log and the live-validation record are in [records/](records/).
 
 `Ember Tides` is an evolving original reference composition for exercising FL MCP against one continuing FL Studio project. It is in F minor at 140 BPM and currently spans 112 bars, or 192 seconds before effect tails. The goal is to revise the same musical work in response to listening and user feedback while using each revision as an engine persistence test.
 
@@ -30,7 +30,7 @@ Python runtime. Its read-only index returned nine locally installed presets whos
 metadata mentions future bass, and its deterministic audio-description path passed
 synthetic centered-stereo and silence checks. The host still exposes no safe preset
 filename loader, so this revision does not claim that metadata search auditioned or
-loaded those presets. See the [v005 verification record](verification-v005.json).
+loaded those presets. See the [v005 verification record](records/verification-v005.json).
 
 ### Installer 0.1.29 integration check
 
@@ -57,7 +57,7 @@ This exposed a sound-design boundary: the host parameter API reaches oscillator 
 
 A Sol sub-agent added `Parameters.set_named(name, value)` to the shared Python SDK. It resolves an exact unique parameter name across pages and returns the written index; missing or ambiguous names cause no write. Resolution and write are separate operations, and readback is a separate query. It avoids copying numeric indices between plugins but does not solve enum discovery or preset loading.
 
-Installer 0.1.28 was installed and the named setter was verified through the installed MCP against Saturn's `Band 1 Drive`: index 11, normalized 0.42, separate display readback 42.0%. A missing name was refused without changing that control. All 2,388 notes survived the installed-version reopen. The [v004 verification record](verification-v004.json) records the 192-second render at -15.5 LUFS integrated and -1.0 dB true peak. The Python gate passed 246 tests and the installer Release build completed without warnings or errors.
+Installer 0.1.28 was installed and the named setter was verified through the installed MCP against Saturn's `Band 1 Drive`: index 11, normalized 0.42, separate display readback 42.0%. A missing name was refused without changing that control. All 2,388 notes survived the installed-version reopen. The [v004 verification record](records/verification-v004.json) records the 192-second render at -15.5 LUFS integrated and -1.0 dB true peak. The Python gate passed 246 tests and the installer Release build completed without warnings or errors.
 
 ## v003: groove revision from listener feedback
 
@@ -65,7 +65,7 @@ The listener reported irritating build drums and parts that did not groove toget
 
 The v003 edit reduces each eight-bar build from 108 snare triggers to 11, lowers build accents, aligns kick/bass/chord accents, simplifies melodic offsets, and sets both Timeless instances to quarter-note sync with a 100% time offset. Delay mix and feedback are reduced. The edits retain all 122 pattern IDs and 125 clip placements, with 2,547 intentionally retained notes.
 
-The revised notes and captured channel/clip/automation/delay/envelope state passed save-close-reopen comparison. The full 192-second render completed without recovery warnings, measuring -15.5 LUFS integrated, -1.0 dB true peak, and 10.8 LU loudness range. The [v003 verification record](verification-v003.json) separates intentional note reductions from persistence checks. These measurements do not replace a listener's judgment of the revised groove.
+The revised notes and captured channel/clip/automation/delay/envelope state passed save-close-reopen comparison. The full 192-second render completed without recovery warnings, measuring -15.5 LUFS integrated, -1.0 dB true peak, and 10.8 LU loudness range. The [v003 verification record](records/verification-v003.json) separates intentional note reductions from persistence checks. These measurements do not replace a listener's judgment of the revised groove.
 
 Duplicate addressing exposed a workflow limitation: `NoteRef` / `NoteEdit` identify notes by channel, key, and start tick, so a target can match multiple notes. An edit-count assertion caught that case. Recovery inspected the partial result, consolidated the explicitly identified hi-hat duplicates, and verified every retained note against the revision plan. It did not rerun initial composition or recreate the patterns. Duplicate-aware inspection and unambiguous individual-note editing are follow-up SDK improvements; they are not implemented by this musical revision.
 
@@ -83,7 +83,7 @@ The final v002 project rendered successfully as 192 seconds of 48 kHz stereo flo
 | Controlled Master-only render | -30.1 LUFS | -15.5 dBFS | Changed only the Master raw volume for scale comparison |
 | v002 | -14.8 LUFS | -1.0 dBFS true peak | Revised mixer levels and added the outro fade automation |
 
-The revisions changed levels and added one fade automation clip; they did not rebuild or alter the 2,979 authored notes or 122 patterns. The final v002 reopen also matched the inspected FabFilter parameters. The [verification record](verification-v002.json) records the measured baseline and its limits. Three-second verse and chorus measurements ran through the embedded Python analysis API; no over-full-scale samples occurred in those measured sections.
+The revisions changed levels and added one fade automation clip; they did not rebuild or alter the 2,979 authored notes or 122 patterns. The final v002 reopen also matched the inspected FabFilter parameters. The [verification record](records/verification-v002.json) records the measured baseline and its limits. Three-second verse and chorus measurements ran through the embedded Python analysis API; no over-full-scale samples occurred in those measured sections.
 
 During that calibration, one embedded Python request set the Master mixer volume to `12800` and immediately read back the preceding value, `6800`; a separate following request read `12800`. This is one observed delayed readback, not evidence that every setter behaves this way. Until the settling semantics are characterized, verify critical mixer writes in a later request instead of treating same-request readback as authoritative.
 
@@ -128,7 +128,7 @@ save-close-reopen. The 192-second render measured -15.1 LUFS, -1.0 dBTP and 7.1 
 
 The 178-second audition was explained: FL extends the song to the last time marker
 (bar 105), and the SDK cannot delete markers. See the
-[v006 verification record](verification-v006.json) and [issues-v006.md](issues-v006.md).
+[v006 verification record](records/verification-v006.json) and [issues-v006.md](records/issues-v006.md).
 
 ## v007: preset selection and an authored lead
 
@@ -143,7 +143,7 @@ while the original velvet chords stay everywhere so the filtered intro survives;
 authored square patch. A rejected draft showed why the layer approach was needed: that factory
 patch routes its oscillators through Serum's FX buses, so FL automation on the voice-filter cutoff
 no longer shaped it. Captured state was byte-equal after reopen (decoded Serum states included).
-Render: -15.0 LUFS, -1.0 dBTP, 7.3 LU. See [verification-v007.json](verification-v007.json).
+Render: -15.0 LUFS, -1.0 dBTP, 7.3 LU. See [verification-v007.json](records/verification-v007.json).
 
 ## v008: drop arps, drum variation, cadence outro, lead audibility
 
@@ -158,7 +158,7 @@ displacement / retrograde / third-shift transforms of the duplicated motif patte
 outro (iv7 - Vsus4 - V7 - i) with a sub line and shortened fades.
 
 State was byte-equal after reopen including decoded Serum states. Render -13.7 LUFS, -1.0 dBTP,
-9.1 LU, 197 s. See [verification-v008.json](verification-v008.json).
+9.1 LU, 197 s. See [verification-v008.json](records/verification-v008.json).
 
 ## v009: softer drop arps
 
@@ -167,7 +167,7 @@ in the 2-4 kHz band and +4.8 dB above 5 kHz. The arp voice was replaced by an au
 pluck with a 2.4 kHz low-pass, the arps were regenerated an octave lower with gentler velocities,
 and the channel moved to its own insert with only a light reverb. Both bands returned to within
 about 1 dB of v007 while keeping the arps. State byte-equal after reopen; render -14.8 LUFS,
--1.0 dBTP, 7.4 LU. See [verification-v009.json](verification-v009.json).
+-1.0 dBTP, 7.4 LU. See [verification-v009.json](records/verification-v009.json).
 
 ## v010: cadence foreshadowed, outro filled out
 
@@ -177,7 +177,7 @@ with a sub line and the closing motif, so the ending returns to a known idea. Th
 the chorus stack, mid bass, the lead doubling the closing line, soft arps running into the tonic,
 kicks on the two arrivals and a fuller pad. Presence bands of the outro stay about 4 dB below the
 accepted chorus. State byte-equal after reopen; render -14.7 LUFS, -1.0 dBTP, 5.8 LU.
-See [verification-v010.json](verification-v010.json).
+See [verification-v010.json](records/verification-v010.json).
 
 ## v011: ending polish, richer lead, wider field
 
@@ -188,7 +188,7 @@ isolated render's fundamental track shows a two-octave descent over 3.4 s. The l
 with seven-voice square, pulse and saw layers plus Serum hyper and chorus, and a factory pad was
 layered at low level as sustained upper chord tones, lifting chorus side energy by about 2 dB
 without changing presence bands. State byte-equal after reopen; render -14.2 LUFS, -1.0 dBTP.
-See [verification-v011.json](verification-v011.json).
+See [verification-v011.json](records/verification-v011.json).
 
 ## v012: the wide pad sits under the lead
 
@@ -196,7 +196,7 @@ The new wide pad clashed with the lead. The pad patterns in the lead sections we
 octave and a full-song channel-volume automation clip ducks the pad by about a third during the
 lead phrases with one-beat ramps, leaving the break untouched. The overlapping 500-1600 Hz band
 dropped about 1.5 dB in those sections and the interlude is unchanged. State byte-equal after
-reopen; render -14.4 LUFS. See [verification-v012.json](verification-v012.json).
+reopen; render -14.4 LUFS. See [verification-v012.json](records/verification-v012.json).
 
 ## v013: interest in the sparse sections
 
@@ -205,7 +205,7 @@ short figures were added only inside gaps: pluck answers at phrase ends in the i
 a soft sub swell and a faint high shimmer in the second half of the intro, a low rising arp in the
 last four bars of each build, and a lead pickup in the bar before the lead's first entrance. The
 intro rose about 2 dB; the verse and build levels are unchanged because the additions live in
-rests. State byte-equal after reopen; render -14.3 LUFS. See [verification-v013.json](verification-v013.json).
+rests. State byte-equal after reopen; render -14.3 LUFS. See [verification-v013.json](records/verification-v013.json).
 
 ## v014-v015: stylized details, mix check and final master
 
@@ -217,7 +217,7 @@ changes: low-end energy measured within 2 dB of the whole. Mastering is limiter 
 (Pro-L 2, +7 dB, -1 dBTP ceiling), giving -10.1 LUFS integrated, 4.7 LU, -1.0 dBTP. Deliverables
 are a 320 kbps MP3, a dithered 44.1 kHz/16-bit WAV and a lossless FLAC, kept outside this
 repository. Both project states were byte-equal after reopen.
-See [verification-v015-master.json](verification-v015-master.json).
+See [verification-v015-master.json](records/verification-v015-master.json).
 
 This completes the first album track of the MCP test series; each track follows the same pattern
 of small listenable revisions with persistence and render verification.
@@ -231,7 +231,7 @@ patch at full level from bar 5, the noise riser peaking at -31 dBFS above 4 kHz 
 6 dB high-band spikes on every fill bar. The sub swell was removed, the riser rebuilt darker and
 quieter with a lower sweep ceiling, the stutter and fills tamed, and the limiter set to +2.4 dB.
 The re-scan shows no full-band jumps; the master measures -14.0 LUFS, 6.0 LU, -1.0 dBTP.
-See [verification-v017-master.json](verification-v017-master.json).
+See [verification-v017-master.json](records/verification-v017-master.json).
 
 ## v018: smoother drop entries (final master)
 
@@ -239,4 +239,4 @@ The chord stutter before each drop read as an out-of-place triplet burst and was
 chord-bus pump now lets each drop's downbeat through at full level before it starts dipping.
 The last beat before each drop is about 6 dB quieter and each downbeat about 1 dB louder than
 v017, with loudness unchanged at -14.0 LUFS, 6.0 LU, -1.0 dBTP. This is the final Ember Tides
-master for the album example. See [verification-v018-master.json](verification-v018-master.json).
+master for the album example. See [verification-v018-master.json](records/verification-v018-master.json).

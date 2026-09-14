@@ -24,16 +24,16 @@ Entry template:
 
 ### Mixer pan scale documented wrong, negatives clamped
 - Status: fixed (live: -3200 round trip, persisted)
-- Evidence: examples/ember-tides/issues-v006.md #1, live-validation-2026-09-13.md
+- Evidence: examples/ember-tides/records/issues-v006.md #1, records/live-validation-2026-09-13.md
 
 ### No way to delete time markers; markers extend renders
 - Status: fixed (delete_marker live-verified; with markers deleted and one 8-bar clip at tick 0 the render was 13.71 s instead of 178.3 s)
-- Evidence: issues-v006.md #2
+- Evidence: records/issues-v006.md #2
 
 ### Installed wheel / API catalog / Python names disagree
 - Status: fixed-unverified for naming annotations; wheel redeployed. `select_channel` and
   `set_channel_solo` still take `index=` while other channel ops take `channel=`.
-- Evidence: issues-v006.md #3
+- Evidence: records/issues-v006.md #3
 
 ### Automation endpoints protected from deletion
 - Status: fixed (set_point live-verified)
@@ -41,7 +41,7 @@ Entry template:
 ### Parameter display readback lags rapid writes in one request
 - Status: open (no host fix found); `Parameters.set_verified` added as mitigation.
   Still observed after preset loads: the display is reliable in the next request only.
-- Evidence: issues-v006.md #5, live-validation-2026-09-13.md
+- Evidence: records/issues-v006.md #5, records/live-validation-2026-09-13.md
 
 ### `query_plugin_parameters` filter appeared to ignore spaces
 - Status: caller (limit bounds the scanned slots from offset). Docs updated; `Parameters.read(index)` added.
@@ -59,7 +59,7 @@ Entry template:
 ### Serum preset loading: default class id ignored silently
 - Status: fixed (deployed; shipped load_preset on "LD - Analog Glow" read back WT Pos 57 / 87% / detune 0.01). Working id is the GUID string order
   `56534558667350736572756D20320000`; memory order is ignored without error.
-- Evidence: live-validation-2026-09-13.md
+- Evidence: records/live-validation-2026-09-13.md
 
 ### Serum factory presets need processor-state normalisation
 - Status: fixed (deployed and live-verified through load_preset; minimal identity subset still not isolated). Drop UI-only sections, add
@@ -83,7 +83,7 @@ Entry template:
   known sounds, but reading which table is loaded is still not possible.
 
 ### Enum/scale mappings undiscoverable (unison count, detune, sub shape, filter cutoff)
-- Status: open (recorded mappings in issues-v006.md #7; a probe helper or catalog metadata
+- Status: open (recorded mappings in records/issues-v006.md #7; a probe helper or catalog metadata
   would avoid rediscovery).
 
 ### `PresetFile` has no `name` attribute; `vars()` fails on slotted records
