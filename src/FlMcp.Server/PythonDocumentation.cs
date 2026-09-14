@@ -30,9 +30,12 @@ public static class PythonDocumentation
         targets the explicitly selected project.
 
         Results: assign a JSON-compatible value to result; dict keys must be strings (str(index)).
-        A raised exception discards the entire result dict, including readings gathered before the
-        failure, so wrap risky steps in try/except and record errors inside result. Keep results
-        small: write large dumps to a file from inside FL (json.dump) and return a summary.
+        A raised exception returns ok:false with error, traceback, the stdout/stderr captured before
+        the failure and, when result was already assigned, its value with resultPartial:true, so
+        build result incrementally instead of wrapping every step in try/except. Responses over
+        FL_MCP_PYTHON_RESPONSE_LIMIT (default 64 KiB) are saved under <workspace>/results/ and
+        returned as {oversized:true,totalBytes,limitBytes,path,head,tail}; read the file for the rest
+        or page the query. The SDK still caps stdout/stderr at 64 KiB each and result at 512 KiB.
         Verify writes in a later request: a plugin's display readback can lag several rapid writes to
         the same parameter within one request. Parameter filters are single-token substrings; read
         one parameter with offset=<index>, limit=1 instead of a filter containing spaces.
@@ -113,6 +116,11 @@ public static class PythonDocumentation
 
         Rendering closes the authoring session and returns a WAV path suitable for another MCP,
         such as Blender. Resume a preserved snapshot using fl_project_start's sourceProjectPath.
+        To audition one section cheaply, pass startBar/endBar to fl_project_render: it saves the
+        full project as <name>-full.flp, trims the live playlist to that span (fruitylink.audition
+        .isolate_bars: outside clips deleted, survivors shifted to bar 1, markers removed) and
+        renders only that. Clips beginning before startBar are refused unless cutClips=true; the
+        WAV ends exactly at endBar unless tailBeats keeps an End marker past it for the tails.
         FL still needs a licensed Windows installation and an interactive desktop session.
         """;
 }

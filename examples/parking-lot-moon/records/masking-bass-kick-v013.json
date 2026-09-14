@@ -1,0 +1,100 @@
+{
+ "masking_report": {
+  "a": {
+   "source": "C:\\Users\\poofi\\AppData\\Local\\FlMcp\\Projects\\Parking-Lot-Moon\\scratch\\v013-stem-bass-33-40.wav",
+   "source_kind": "audio_file",
+   "start_seconds": 0.0,
+   "end_seconds": 19.2
+  },
+  "b": {
+   "source": "C:\\Users\\poofi\\AppData\\Local\\FlMcp\\Projects\\Parking-Lot-Moon\\scratch\\v013-stem-kick-33-40.wav",
+   "source_kind": "audio_file",
+   "start_seconds": 0.0,
+   "end_seconds": 19.2
+  },
+  "bands": {
+   "<45": {
+    "a_db": -45.58,
+    "b_db": -31.85,
+    "louder": "b",
+    "overlap_db": -13.73
+   },
+   "45-90": {
+    "a_db": -26.81,
+    "b_db": -26.06,
+    "louder": "b",
+    "overlap_db": -0.75
+   },
+   "90-150": {
+    "a_db": -25.09,
+    "b_db": -32.59,
+    "louder": "a",
+    "overlap_db": -7.5
+   },
+   "150-250": {
+    "a_db": -30.94,
+    "b_db": -34.79,
+    "louder": "a",
+    "overlap_db": -3.85
+   },
+   "250-500": {
+    "a_db": -41.0,
+    "b_db": -40.41,
+    "louder": "b",
+    "overlap_db": -0.59
+   },
+   "500-2000": {
+    "a_db": -47.26,
+    "b_db": -45.4,
+    "louder": "b",
+    "overlap_db": -1.86
+   }
+  },
+  "clashes": [
+   "45-90",
+   "150-250",
+   "250-500",
+   "500-2000"
+  ],
+  "clash_threshold_db": 6.0,
+  "floor_db": -60.0,
+  "band_definitions": [
+   {
+    "label": "<45",
+    "low_hz": null,
+    "high_hz": 45.0
+   },
+   {
+    "label": "45-90",
+    "low_hz": 45.0,
+    "high_hz": 90.0
+   },
+   {
+    "label": "90-150",
+    "low_hz": 90.0,
+    "high_hz": 150.0
+   },
+   {
+    "label": "150-250",
+    "low_hz": 150.0,
+    "high_hz": 250.0
+   },
+   {
+    "label": "250-500",
+    "low_hz": 250.0,
+    "high_hz": 500.0
+   },
+   {
+    "label": "500-2000",
+    "low_hz": 500.0,
+    "high_hz": 2000.0
+   }
+  ],
+  "overlap_definition": "quieter level minus louder level in dB; 0 is full overlap",
+  "method": "channel-mean mono mix; 4th-order Butterworth (2 RBJ biquads per edge, 24 dB/oct), forward only, 0.5 s pre-roll; RMS dBFS re amplitude 1"
+ },
+ "stem_levels": [
+  "bass: peak -10.6 dBFS, rms -22.2, dominant 92.5 Hz | 20-45:-66.3 45-90:-31.7 90-150:-23.0 150-250:-35.6 250-500:-43.0 500-2000:-47.6",
+  "kick: peak -4.0 dBFS, rms -23.9, dominant 51.2 Hz | 20-45:-39.0 45-90:-25.2 90-150:-32.9 150-250:-34.9 250-500:-41.5 500-2000:-45.5"
+ ]
+}

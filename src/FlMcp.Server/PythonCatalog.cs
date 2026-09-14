@@ -35,7 +35,7 @@ public static class PythonCatalog
         ["primaryRoute"] = "fl_execute_python is the primary way to work: one request can run many operations through fl.channels, fl.patterns, fl.clips, fl.playlist, fl.mixer, fl.automation, fl.transport, fl.plugins, fl.analysis and fl.ops. The single-operation MCP tools are conveniences, not the only route.",
         ["arguments"] = "Python arguments are keyword-only snake_case: channelOrTrack -> channel_or_track, paramIndex -> param_index. Each parameter below carries pythonName; each operation carries pythonSignature.",
         ["typedResults"] = "query_* operations return dataclasses whose attributes are snake_case (displayValue -> display_value, nextOffset -> next_offset); returnSchema properties carry pythonName. fl.ops.invoke(...) and other raw dict results keep the camelCase wire keys.",
-        ["result"] = "Assign a JSON-compatible value to result; dict keys must be strings. A raised exception discards the whole result dict, so wrap steps in try/except and record errors in the result. Write oversized dumps to a file from inside FL and return a summary.",
+        ["result"] = "Assign a JSON-compatible value to result; dict keys must be strings. A raised exception returns ok:false with error, traceback, the captured stdout/stderr and whatever result already held (resultPartial:true), so build result incrementally. Responses over FL_MCP_PYTHON_RESPONSE_LIMIT (default 64 KiB) are saved under <workspace>/results/ and summarized with head, tail and path; page queries or return summaries.",
     };
 
     private static void AnnotateOperation(JsonObject operation)

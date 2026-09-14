@@ -6,6 +6,8 @@ public sealed record ServerSettings(string? Executable, string? Template, string
 {
     public string? PythonRuntimeDirectory { get; init; }
     public string? PythonPackagePath { get; init; }
+    /// <summary>Inline budget for fl_execute_python responses in UTF-8 bytes; larger responses are saved under the workspace.</summary>
+    public int PythonResponseLimitBytes { get; init; } = PythonResults.DefaultLimitBytes;
     public static ServerSettings FromEnvironment() => new(
         Environment.GetEnvironmentVariable("FL_MCP_FL_EXE"),
         Environment.GetEnvironmentVariable("FL_MCP_TEMPLATE"),
@@ -13,7 +15,8 @@ public sealed record ServerSettings(string? Executable, string? Template, string
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FlMcp", "Projects"))
     {
         PythonRuntimeDirectory = Environment.GetEnvironmentVariable("FL_MCP_PYTHON_RUNTIME"),
-        PythonPackagePath = Environment.GetEnvironmentVariable("FL_MCP_PYTHON_PATH")
+        PythonPackagePath = Environment.GetEnvironmentVariable("FL_MCP_PYTHON_PATH"),
+        PythonResponseLimitBytes = PythonResults.ParseLimit(Environment.GetEnvironmentVariable(PythonResults.LimitVariable))
     };
 
     public string ResolvePythonRuntime() => PythonRuntimeDirectory ??

@@ -12,16 +12,26 @@
 
 Work on an open FL Studio project, or let an agent start a disposable project, author music, save snapshots, and render a WAV. **27 MCP tools** cover discovery, authoring, project management, and embedded Python. The shared FruityLink SDK adds typed access to notes, playlist clips, mixer routing/effects, automation, and offline audio analysis.
 
-## Example: Ember Tides
+## Example album
 
-An original future-bass track composed, revised, mixed and mastered entirely through FL MCP and the
-embedded Python API, in eighteen small listener-driven revisions with persistence and render
-verification at every step. It is the first track of an album being produced to exercise the MCP.
+Original tracks composed, revised, mixed and mastered entirely through FL MCP and the embedded
+Python API, in small listener-driven revisions with persistence and render verification at every
+step. The album exists to exercise the MCP against real production work; each track's friction
+became the next batch of SDK fixes. **Listen in the browser** on the
+[album page of the documentation site](https://realynx.github.io/Fl-MCP/album/) (GitHub shows
+repository audio as a raw file; the site embeds a player).
 
-- **Listen in the browser:** [Album page on the documentation site](https://realynx.github.io/Fl-MCP/album/) (GitHub shows repository audio as a raw file; the site embeds a player)
+**1. Ember Tides** (future bass, F minor, 140 BPM, eighteen revisions)
+
 - **MP3:** [Ember-Tides-final-master.mp3](examples/ember-tides/Ember-Tides-final-master.mp3) (3:20, -14 LUFS, -1 dBTP)
 - **Project file:** [Ember-Tides.flp](examples/ember-tides/Ember-Tides.flp) (FL Studio 2026, Serum 2, FabFilter; drum samples not included)
 - **Revision history:** [examples/ember-tides](examples/ember-tides/README.md) · verification records in [examples/ember-tides/records](examples/ember-tides/records)
+
+**2. Parking Lot Moon** (dream-pop / trip-hop / dark synthpop, F# minor, 100 BPM, fifteen revisions from a friend's brief)
+
+- **MP3:** [Parking-Lot-Moon-final-master.mp3](examples/parking-lot-moon/Parking-Lot-Moon-final-master.mp3) (4:19, -13.9 LUFS, -1 dBTP)
+- **Project file:** [Parking-Lot-Moon.flp](examples/parking-lot-moon/Parking-Lot-Moon.flp) (FL Studio 2026, Serum 2, GMS, FabFilter; commercial samples and vocal loop not included)
+- **Revision history:** [examples/parking-lot-moon](examples/parking-lot-moon/README.md) · phase and verification records in [examples/parking-lot-moon/records](examples/parking-lot-moon/records)
 
 **[Open the documentation site →](https://realynx.github.io/Fl-MCP/)**
 

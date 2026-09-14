@@ -100,16 +100,26 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         finally { gate.Release(); }
     }
 
-    public async Task<object> RenderAsync(string outputPath, int timeoutSeconds, CancellationToken ct)
+    public async Task<object> RenderAsync(string outputPath, int timeoutSeconds, CancellationToken ct, RenderRange? range = null)
     {
         ValidateTimeout(timeoutSeconds, 3600);
+        range?.Validate();
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             RequireOwnedLifecycle("render");
             var output = paths.NewFile(outputPath, ".wav");
-            var snapshotName = Path.Combine("snapshots", Guid.NewGuid().ToString("N"), Path.GetFileNameWithoutExtension(output) + ".flp");
-            var snapshot = await SaveCoreAsync(snapshotName, ct).ConfigureAwait(false);
+            var snapshotDirectory = Path.Combine("snapshots", Guid.NewGuid().ToString("N"));
+            var stem = Path.GetFileNameWithoutExtension(output);
+            string? fullProject = null;
+            JsonElement? isolation = null;
+            if (range is not null)
+            {
+                // Preserve the untrimmed project first: isolating the range edits the live disposable project.
+                fullProject = await SaveCoreAsync(Path.Combine(snapshotDirectory, stem + "-full.flp"), ct).ConfigureAwait(false);
+                isolation = await IsolateRangeAsync(range, fullProject, ct).ConfigureAwait(false);
+            }
+            var snapshot = await SaveCoreAsync(Path.Combine(snapshotDirectory, stem + ".flp"), ct).ConfigureAwait(false);
             var dialogs = new OwnedDialogMonitor(paths, snapshot, "Render");
             var renderInBackground = ownedBackground;
             // The owned editor is disposable; snapshot validity is checked before its process is stopped.
@@ -123,8 +133,8 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             {
                 await AwaitRenderAsync(render, dialogs, deadline.Token).ConfigureAwait(false);
                 if (render.ExitCode != 0) throw new IOException($"FL render exited with code {render.ExitCode}. Snapshot: {snapshot}");
-                return new { path = output, bytes = Artifacts.VerifyWave(output), project = snapshot, sessionClosed = true,
-                    warnings = launchWarnings.Concat(dialogs.Warnings).ToArray() };
+                return new { path = output, bytes = Artifacts.VerifyWave(output), project = snapshot, fullProject, range = isolation,
+                    sessionClosed = true, warnings = launchWarnings.Concat(dialogs.Warnings).ToArray() };
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {

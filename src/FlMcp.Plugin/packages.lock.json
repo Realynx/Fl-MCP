@@ -2,31 +2,23 @@
   "version": 1,
   "dependencies": {
     "net9.0-windows7.0": {
-      "FruityLink.Plugins.Abstractions": {
-        "type": "Direct",
-        "requested": "[0.2.0, )",
-        "resolved": "0.2.0",
-        "contentHash": "lZUmsXDbznwCdQtIuzY2XEODsCDNR/4obWSWv7zRSurZoxorX4EyBZnO8qFo209g1MuCXwXXdaknvPAsWsWwqw==",
-        "dependencies": {
-          "FruityLink.Core": "0.2.0"
-        }
-      },
-      "FruityLink.Scripting": {
-        "type": "Direct",
-        "requested": "[0.2.0, )",
-        "resolved": "0.2.0",
-        "contentHash": "e7GTtCg5Z29TJn2u4xEvxsxecDxV1O9sjiHZ9dY8z9OWd/KNWkT/hAtomK41zQ2MbMZ8Rw2p+U3zL9dRbkyQuA==",
-        "dependencies": {
-          "FruityLink.Core": "0.2.0"
-        }
-      },
-      "FruityLink.Core": {
-        "type": "Transitive",
-        "resolved": "0.2.0",
-        "contentHash": "pwOWAjo7ZEVW+WIDNtsAi8XvmkgvjrugiKv5CDq7bGylxnitl3oiTs+XQg3MhAD5Ot0V9TA0An+s0qtY6iM3iA=="
-      },
       "flmcp.protocol": {
         "type": "Project"
+      },
+      "fruitylink.core": {
+        "type": "Project"
+      },
+      "fruitylink.plugins.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "FruityLink.Core": "[0.2.0, )"
+        }
+      },
+      "fruitylink.scripting": {
+        "type": "Project",
+        "dependencies": {
+          "FruityLink.Core": "[0.2.0, )"
+        }
       }
     }
   }

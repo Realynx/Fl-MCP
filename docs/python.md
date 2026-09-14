@@ -11,8 +11,8 @@
 - Python arguments are keyword-only **snake_case** even though the catalog's wire names are camelCase: `fl.ops.query_plugin_parameters(channel_or_track=4, slot=-1, offset=199, limit=1)`. `fl_python_api` returns `pythonSignature` per operation and `pythonName` per argument and result field, so you never have to convert names yourself. `get_channel_name` takes `index=`; the other channel getters take `channel=`.
 - Typed `query_*` results are dataclasses with snake_case attributes (`item.display_value`, `page.next_offset`). Raw `fl.ops.invoke(...)` results keep camelCase keys.
 - `result` must be JSON-compatible and dict keys must be strings (`str(index)`).
-- A raised exception discards the entire `result` dict, including readings gathered before the failure. Wrap risky steps in `try`/`except` and record errors inside `result`.
-- Keep results small. Write large dumps to a file from inside FL (`json.dump`) and return a summary; a response over the client's display budget is saved to a file by the client instead of shown.
+- A raised exception returns `ok:false` with the traceback, the output captured before the failure, and whatever `result` already held (`resultPartial:true`). Build `result` incrementally so a late failure still reports earlier readings; see [Errors and large results](#errors-and-large-results).
+- Keep results small. A response over `FL_MCP_PYTHON_RESPONSE_LIMIT` (default 64 KiB) is saved under `<workspace>/results/` and summarized with its head, tail and path; page queries or return summaries when you can.
 - Verify writes in a later request. A plugin's display readback can lag several rapid writes to the same parameter within one request; a single write followed by a read in the next request was consistent.
 - Parameter `filter` values are single-token substrings. Read one parameter with `offset=<index>, limit=1` instead of a filter containing spaces.
 - Song time markers extend renders: FL renders to the later of the last clip end and the last marker. Use `fl_markers_list` / `fl_marker_delete` (or `fl.ops.delete_marker(index=...)` on SDK builds that expose it) to shorten an audition.
@@ -55,6 +55,30 @@ result = fl.channels[0].parameters.page(filter="cutoff", offset=0, limit=32)
 ```
 
 Continue with the returned `nextOffset` and the same filter/limit until it is `null`. Offsets count raw parameter slots, so an empty filtered page may still have a continuation. Iteration is lazy, but converting everything to a list gathers every page and can exceed the response limit. `find(name)` requires an exact, unique parameter name.
+
+## Errors and large results
+
+A successful run returns `{ok:true, result, stdout, stderr, stdoutTruncated, stderrTruncated}`; that shape is unchanged.
+
+**Exceptions keep partial work.** When the script raises, the response is `ok:false` with `error` and `traceback`, the `stdout`/`stderr` captured up to the failure, and the value `result` held at that moment under `result` with `resultPartial:true` (or `resultPartialError` when it could not be serialized). Assign readings to `result` as you go rather than wrapping every step in `try`/`except`:
+
+```json
+{"ok": false, "result": {"tempo": 140.0, "channels": 6}, "resultPartial": true,
+ "error": "KeyError: 'Serum'", "traceback": "Traceback (most recent call last):\n  File \"<fruitylink-embedded>\", line 4 ...",
+ "stdout": "tempo read\n", "stderr": "", "stdoutTruncated": false, "stderrTruncated": false}
+```
+
+**Large responses are saved, not lost.** The SDK caps each captured stream at 64 KiB and `result` at 512 KiB (a larger `result` fails with `ok:false` and the streams intact). On top of that, the server keeps a tool response within `FL_MCP_PYTHON_RESPONSE_LIMIT` bytes (default 65536, minimum 4096) so it fits the MCP client's display budget. A response over the limit is written as indented JSON to `<workspace>/results/<yyyyMMdd-HHmmss>-<id>.json` and replaced by:
+
+```json
+{"ok": true, "oversized": true, "totalBytes": 412903, "limitBytes": 65536,
+ "path": "C:\\Users\\me\\AppData\\Local\\FlMcp\\Projects\\results\\20260914-153000-3f2a9c1d.json",
+ "head": "{\n  \"ok\": true,\n  \"result\": [\n    {\n      \"index\": 0, ...",
+ "tail": "...\n  \"stdoutTruncated\": false,\n  \"stderrTruncated\": false\n}",
+ "note": "The response is 412903 bytes, over the 65536-byte FL_MCP_PYTHON_RESPONSE_LIMIT. ..."}
+```
+
+`head` holds the first quarter of the limit and `tail` the last eighth; `error`, `resultPartial`, `stdoutTruncated` and `stderrTruncated` are carried over when present. Read the file with your client's file tool for the rest, or return a page or summary next time. The files are ordinary workspace artifacts and are never deleted automatically.
 
 ## Serum support
 

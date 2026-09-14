@@ -13,6 +13,7 @@ Use [examples/mcp-settings.json](https://github.com/Realynx/Fl-MCP/blob/master/e
 | `FL_MCP_WORKSPACE` | Absolute output/sample workspace; defaults to `%LocalAppData%\FlMcp\Projects` |
 | `FL_MCP_PYTHON_RUNTIME` | Private CPython runtime directory; defaults to `<FL>/FruityLink/tools/fl-mcp/python/runtime` |
 | `FL_MCP_PYTHON_PATH` | SDK wheel or development source directory; defaults to the installed wheel under `<FL>/FruityLink/tools/fl-mcp/python` |
+| `FL_MCP_PYTHON_RESPONSE_LIMIT` | Inline byte budget for `fl_execute_python` responses (default 65536, minimum 4096); larger responses are saved under `<workspace>/results/` and summarized |
 
 The current installer can configure the framework-owned runtime under `<FL>/FruityLink/python` explicitly. The table describes this adapter's fallback paths when those environment overrides are absent. Do not replace an active interpreter's runtime or package in place; restart FL after an update.
 

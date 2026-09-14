@@ -71,6 +71,7 @@ public sealed class PythonCatalogTests
         Assert.Contains("primary way to work", text);
         Assert.Contains("snake_case", text);
         Assert.Contains("fruitylink_serum", text);
-        Assert.Contains("exception discards", text);
+        Assert.Contains("resultPartial:true", text);
+        Assert.Contains(PythonResults.LimitVariable, text);
     }
 }

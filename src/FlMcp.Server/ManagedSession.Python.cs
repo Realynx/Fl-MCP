@@ -28,7 +28,9 @@ public sealed partial class ManagedSession
         {
             await RequireProjectIdentityAsync(ct).ConfigureAwait(false);
             var request = new PythonExecute(code, timeoutSeconds, expectedProject ?? attachedProject?.Path ?? "") { AttachedProject = attachedProject };
-            return await CallCoreAsync("python_execute", request, timeoutSeconds, ct).ConfigureAwait(false);
+            var response = await CallCoreAsync("python_execute", request, timeoutSeconds, ct).ConfigureAwait(false);
+            // The SDK already returns partial stdout/stderr/result with the traceback on failure; only size is bounded here.
+            return PythonResults.Bound(response, settings.PythonResponseLimitBytes, paths, DateTimeOffset.UtcNow);
         }
         catch (BridgeCompletionUnknownException) { embeddedCompletionUnknown = true; throw; }
         finally { gate.Release(); }

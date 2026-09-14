@@ -17,9 +17,15 @@ Embedded Python through `fl_execute_python` is the primary way to work: one requ
 | `fl_status` | None | Reads process/bridge identity, project metadata, tempo, and PPQ. A detected project change reports `requiresReattach`. |
 | `fl_project_save` | `projectPath` | Writes a verified new `.flp` snapshot without changing active project identity. Attached saves preserve playback/song mode. |
 | `fl_project_close` | `projectPath` | Saves to a new `.flp`, verifies it, then terminates the disposable editor. Refuses attached sessions. |
-| `fl_project_render` | `outputPath`, `timeoutSeconds=600` | Saves, closes the disposable editor, exports to a new WAV, waits for renderer exit, and validates the WAV. Maximum timeout: 3600 seconds. Refuses attached sessions. |
+| `fl_project_render` | `outputPath`, `timeoutSeconds=600`, `startBar=null`, `endBar=null`, `cutClips=false`, `tailBeats=0` | Saves, closes the disposable editor, exports to a new WAV, waits for renderer exit, and validates the WAV. Maximum timeout: 3600 seconds. Refuses attached sessions. `startBar`/`endBar` (one-based, inclusive) render only that section; `tailBeats` keeps that many beats of tail after `endBar`. |
 
 Rendering ends the editing session. Its result includes an audio path and snapshot path; resume with `fl_project_start` and `sourceProjectPath`.
+
+### Section renders
+
+FL's command-line exporter has no range option: it always renders from bar 1 to the later of the last clip end and the last time marker, so auditioning one section normally costs a full-length render. With `startBar` and `endBar` (for example 49 and 64 for sixteen bars) the tool first saves the untrimmed project as `<name>-full.flp` next to the render snapshot, then trims the live disposable project with the SDK's `fruitylink.audition.isolate_bars`: clips outside the span are deleted, clips running past `endBar` are shortened, the survivors move to bar 1, every time marker is removed and the loop selection is cleared. The trimmed project is then snapshotted and rendered as usual. The result adds `fullProject` (resume it with `fl_project_start` and `sourceProjectPath`) and `range` (kept, deleted and cut clip counts).
+
+A clip that begins before `startBar` must be cut at the boundary. The SDK's slice restarts a *pattern* clip's second half from the pattern's first beat (audio and automation clips keep their source offset), so such clips are refused unless `cutClips=true`; start on a clip boundary for exact auditions. Because the markers are removed, FL stops the render at the last surviving clip end: bars 49-64 give exactly sixteen bars and reverb or release tails are cut (live, 2026-09-14). Pass `tailBeats` (for example 8 for two bars of 4/4) to place an `End` marker that many beats past the span; the result's `range.tail_ticks` reports what was added. If isolation fails, the editing session stays open, the error names the preserved `-full.flp`, and playlist edits made before the failure are not rolled back. Requires an installed `fruitylink` package that provides `fruitylink.audition`.
 
 ## Discovery
 
@@ -75,6 +81,6 @@ Discover active mixer indices with Python `fl.mixer.list()`. Master is 0; active
 | --- | --- | --- |
 | `fl_python_docs` | None | Returns execution conventions, helper classes, naming and result rules, and lifecycle guidance, even before connecting to FL. Names the installed fruitylink wheel up front. |
 | `fl_python_api` | `filter=null` | Returns operations, typed arguments, descriptions, and defaults from the shared SDK contract. Matches the optional filter against operation names/descriptions. Wire names stay camelCase; each operation carries `pythonSignature` and each argument/result field carries `pythonName` (snake_case) for use in scripts. |
-| `fl_execute_python` | `code`, `timeoutSeconds=60` | Runs trusted Python inside FL with `fl` supplied as a `Studio`. Deadline range: 1–300 seconds; cancellation is cooperative. |
+| `fl_execute_python` | `code`, `timeoutSeconds=60` | Runs trusted Python inside FL with `fl` supplied as a `Studio`. Deadline range: 1–300 seconds; cancellation is cooperative. Exceptions return the captured output, traceback and any partial `result`; responses over `FL_MCP_PYTHON_RESPONSE_LIMIT` are saved under `<workspace>/results/` and summarized with head, tail and path (see [Errors and large results](python.md#errors-and-large-results)). |
 
 Use [the Python guide](python.md) for results, paging, automation, audio analysis, and links to the complete reusable SDK documentation.

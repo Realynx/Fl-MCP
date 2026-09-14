@@ -252,6 +252,30 @@ public sealed class SessionTests
     }
 
     [Fact]
+    public async Task OversizedEmbeddedResponseIsSavedUnderWorkspaceAndSummarized()
+    {
+        using var fixture = new Fixture();
+        await using var session = new ManagedSession(fixture.Settings with { PythonResponseLimitBytes = PythonResults.MinimumLimitBytes }, fixture.Processes, fixture.Bridge);
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(new { ok = true, result = new string('r', 20_000), stdout = "kept\n", stderr = "", stdoutTruncated = false, stderrTruncated = false }));
+        var envelope = await session.ExecutePythonAsync("result = 'r' * 20000", 10, CancellationToken.None);
+        Assert.True(envelope.GetProperty("oversized").GetBoolean());
+        Assert.True(envelope.GetProperty("ok").GetBoolean());
+        var path = envelope.GetProperty("path").GetString()!;
+        Assert.StartsWith(Path.Combine(fixture.Files.Root, PythonResults.ResultsDirectory) + Path.DirectorySeparatorChar, path);
+        using var saved = JsonDocument.Parse(File.ReadAllText(path));
+        Assert.Equal(20_000, saved.RootElement.GetProperty("result").GetString()!.Length);
+        Assert.Equal("kept\n", saved.RootElement.GetProperty("stdout").GetString());
+
+        fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(new { ok = false, result = new { tempo = 120 }, resultPartial = true, error = "ValueError: late", stdout = "before\n" }));
+        var failure = await session.ExecutePythonAsync("raise ValueError", 10, CancellationToken.None);
+        Assert.False(failure.GetProperty("ok").GetBoolean());
+        Assert.Equal(120, failure.GetProperty("result").GetProperty("tempo").GetInt32());
+        Assert.Equal("before\n", failure.GetProperty("stdout").GetString());
+        Assert.False(failure.TryGetProperty("oversized", out _));
+    }
+
+    [Fact]
     public async Task TypedProjectIdentityOverridesMisleadingLegacyText()
     {
         using var fixture = new Fixture();
@@ -307,6 +331,124 @@ public sealed class SessionTests
         await session.CallAsync("status", new { }, CancellationToken.None);
         await session.DisposeAsync();
         Assert.True(fixture.Processes.Started[0].Process.Terminated);
+    }
+
+    [Fact]
+    public async Task RenderRangePreservesTheFullProjectThenIsolatesBarsBeforeTheRenderSnapshot()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        PythonExecute? request = null;
+        fixture.Bridge.OnPython = (execute, _) =>
+        {
+            request = execute;
+            return Task.FromResult(Messages.Element(new { ok = true, result = new { kept_clips = 2, cut_clips = 0 } }));
+        };
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("section.wav"));
+
+        var result = Messages.Element(await session.RenderAsync("section.wav", 1, CancellationToken.None, new RenderRange(49, 64)));
+
+        Assert.Contains("from fruitylink.audition import isolate_bars", request!.Code);
+        Assert.Contains("isolate_bars(fl, 49, 64, cut_clips=False)", request.Code);
+        Assert.Equal(new[] { "save", "python_execute", "save" }, fixture.Bridge.Calls.Where(call => call != "status"));
+        var fullProject = result.GetProperty("fullProject").GetString()!;
+        Assert.EndsWith("section-full.flp", fullProject);
+        Assert.True(File.Exists(fullProject));
+        Assert.EndsWith("section.flp", result.GetProperty("project").GetString());
+        Assert.Equal(Path.GetDirectoryName(fullProject), Path.GetDirectoryName(result.GetProperty("project").GetString()));
+        Assert.Equal(2, result.GetProperty("range").GetProperty("kept_clips").GetInt32());
+        Assert.True(result.GetProperty("sessionClosed").GetBoolean());
+        Assert.EndsWith("section.flp", fixture.Processes.Started[1].Info.ArgumentList[3]);
+    }
+
+    [Fact]
+    public async Task FailedRangeIsolationKeepsTheEditorOpenAndNeverStartsTheRenderer()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(
+            new { ok = false, result = (object?)null, error = "ValueError: Clips [3] begin before tick 18432 and would be cut" }));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            session.RenderAsync("section.wav", 1, CancellationToken.None, new RenderRange(49, 64, CutClips: true)));
+
+        Assert.Contains("Clips [3] begin before tick 18432", error.Message);
+        Assert.Contains("section-full.flp", error.Message);
+        Assert.Single(fixture.Processes.Started);
+        Assert.False(fixture.Processes.Started[0].Process.Terminated);
+        Assert.Equal(new[] { "save", "python_execute" }, fixture.Bridge.Calls.Where(call => call != "status"));
+        var status = await session.CallAsync("status", new { }, CancellationToken.None);
+        Assert.True(status.GetProperty("available").GetBoolean());
+    }
+
+    [Fact]
+    public async Task RenderWithoutRangeDoesNotTouchPythonOrSaveAFullSnapshot()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => throw new InvalidOperationException("no Python expected");
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("plain.wav"));
+
+        var result = Messages.Element(await session.RenderAsync("plain.wav", 1, CancellationToken.None));
+
+        Assert.Equal(new[] { "save" }, fixture.Bridge.Calls.Where(call => call != "status"));
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("fullProject").ValueKind);
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("range").ValueKind);
+    }
+
+    [Theory]
+    [InlineData(0, 4)]
+    [InlineData(5, 4)]
+    public void RenderRangeRejectsInvalidBars(int startBar, int endBar) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => RenderRange.From(startBar, endBar, false));
+
+    [Fact]
+    public void RenderRangeRequiresBothBarsOrNeither()
+    {
+        Assert.Null(RenderRange.From(null, null, false));
+        Assert.Throws<ArgumentException>(() => RenderRange.From(49, null, false));
+        Assert.Throws<ArgumentException>(() => RenderRange.From(null, 64, false));
+        Assert.Equal(new RenderRange(49, 64, true), RenderRange.From(49, 64, true));
+        Assert.Equal(new RenderRange(49, 64, false, 8), RenderRange.From(49, 64, false, 8));
+        Assert.Throws<ArgumentException>(() => RenderRange.From(null, null, false, 8));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void RenderRangeRejectsInvalidTails(double tailBeats) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => RenderRange.From(49, 64, false, tailBeats));
+
+    [Fact]
+    public void RenderRangePassesTailBeatsToIsolateBarsOnlyWhenSet()
+    {
+        Assert.Equal("49, 64, cut_clips=False", new RenderRange(49, 64).PythonArguments());
+        Assert.Equal("49, 64, cut_clips=True, tail_beats=8", new RenderRange(49, 64, true, 8).PythonArguments());
+        Assert.Equal("1, 4, cut_clips=False, tail_beats=2.5", new RenderRange(1, 4, false, 2.5).PythonArguments());
+    }
+
+    [Fact]
+    public async Task RenderRangeWithTailAsksTheSdkForAnEndMarkerPastTheSpan()
+    {
+        using var fixture = new Fixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        PythonExecute? request = null;
+        fixture.Bridge.OnPython = (execute, _) =>
+        {
+            request = execute;
+            return Task.FromResult(Messages.Element(new { ok = true, result = new { kept_clips = 2, tail_ticks = 768 } }));
+        };
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("tailed.wav"));
+
+        var result = Messages.Element(await session.RenderAsync("tailed.wav", 1, CancellationToken.None, new RenderRange(49, 64, false, 8)));
+
+        Assert.Contains("isolate_bars(fl, 49, 64, cut_clips=False, tail_beats=8)", request!.Code);
+        Assert.Equal(768, result.GetProperty("range").GetProperty("tail_ticks").GetInt32());
     }
 
     [Fact]
