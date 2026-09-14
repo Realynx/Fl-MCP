@@ -1,0 +1,126 @@
+{
+ "title": "Ember Tides",
+ "revision": "v012",
+ "base_revision": "v011",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 195.43,
+ "notes": 4017,
+ "patterns": 155,
+ "clips": 169,
+ "channels": 24,
+ "feedback": "wide pad clashes with the lead where the lead plays",
+ "changes": {
+  "wide_air_octave": {
+   "patterns": [
+    151,
+    153,
+    154,
+    155
+   ],
+   "transpose": -12,
+   "range_after": [
+    60,
+    70
+   ]
+  },
+  "duck_automation": {
+   "channel": 23,
+   "target": "channel_volume(22)",
+   "playlist_track": 25,
+   "points_beats": [
+    [
+     0,
+     0.55
+    ],
+    [
+     159,
+     0.55
+    ],
+    [
+     161,
+     0.36
+    ],
+    [
+     191,
+     0.36
+    ],
+    [
+     193,
+     0.55
+    ],
+    [
+     319,
+     0.55
+    ],
+    [
+     321,
+     0.36
+    ],
+    [
+     415,
+     0.36
+    ],
+    [
+     417,
+     0.55
+    ],
+    [
+     448,
+     0.55
+    ]
+   ],
+   "note": "channel volume automation 0..1 maps to 0..12800; 0.55 read back as 7040"
+  }
+ },
+ "measurements": {
+  "band_500_1600_dbfs": {
+   "chorus_I_2": {
+    "v011": -20.6,
+    "v012": -22.0
+   },
+   "chorus_II": {
+    "v011": -20.79,
+    "v012": -22.34
+   },
+   "interlude": {
+    "v011": -22.45,
+    "v012": -22.42
+   }
+  },
+  "side_rms_dbfs": {
+   "chorus_I_2": {
+    "v011": -21.77,
+    "v012": -22.71
+   },
+   "chorus_II": {
+    "v011": -21.85,
+    "v012": -22.86
+   }
+  }
+ },
+ "persistence": {
+  "captured_state_equal": true,
+  "decoded_serum_states_compared": [
+   1,
+   4,
+   19,
+   20,
+   22
+  ]
+ },
+ "render": {
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "format": "float32le",
+  "bytes": 75045518,
+  "integrated_lufs": -14.4,
+  "true_peak_dbtp": -1.0,
+  "loudness_range_lu": 6.0
+ },
+ "sha256_prefix": {
+  "v011": "f2be239beed17fdf4ee92d8e",
+  "v012": "d527bc52b65887a0bd8532e7"
+ }
+}

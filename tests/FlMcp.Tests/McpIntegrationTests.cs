@@ -25,7 +25,8 @@ public sealed class McpIntegrationTests
         });
         await using var client = await McpClient.CreateAsync(transport, cancellationToken: deadline.Token);
         var tools = await client.ListToolsAsync(cancellationToken: deadline.Token);
-        Assert.Equal(27, tools.Count);
+        Assert.Equal(29, tools.Count);
+        Assert.Contains(tools, tool => tool.Name == "fl_marker_delete");
         Assert.All(tools, tool => Assert.StartsWith("fl_", tool.Name));
         Assert.Contains(tools, tool => tool.Name == "fl_project_render");
         Assert.Contains(tools, tool => tool.Name == "fl_execute_python");

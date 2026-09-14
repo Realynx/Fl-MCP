@@ -1,0 +1,63 @@
+{
+ "title": "Ember Tides",
+ "revision": "v013",
+ "base_revision": "v012",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 195.43,
+ "notes": 4068,
+ "patterns": 161,
+ "clips": 177,
+ "channels": 24,
+ "feedback": "not enough going on in the intro and other lead-less parts; add parts into empty spaces without removing negative space",
+ "changes": {
+  "156": "Intro 1 | Answer: soft-pluck three-note answers in bars 4 and 8",
+  "157": "Intro 1 | Sub swell: F2 bars 5-8 velocity 60",
+  "158": "Intro 1 | Wide air: F5+C6 velocity 34 bars 5-8",
+  "159": "Verse I | Answer: descending answers in bars 4 and 8 of each half (bars 9, 17)",
+  "160": "Build | Rise arp: eighth-note rising chord tones in the last four bars of each build (bars 25, 73 placements), velocity 50-84",
+  "161": "Chorus I 1 | Lead call: Eb F Ab G pickup in bar 40 into the lead entrance"
+ },
+ "section_rms_dbfs": {
+  "intro": {
+   "v012": -21.87,
+   "v013": -19.71
+  },
+  "verse_I": {
+   "v012": -17.77,
+   "v013": -17.77
+  },
+  "build_I": {
+   "v012": -18.5,
+   "v013": -18.5
+  },
+  "chorus_I_1": {
+   "v012": -12.99,
+   "v013": -12.97
+  }
+ },
+ "persistence": {
+  "captured_state_equal": true,
+  "decoded_serum_states_compared": [
+   1,
+   4,
+   19,
+   20,
+   22
+  ]
+ },
+ "render": {
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "format": "float32le",
+  "bytes": 75045518,
+  "integrated_lufs": -14.3,
+  "true_peak_dbtp": -1.0,
+  "loudness_range_lu": 5.7
+ },
+ "sha256_prefix": {
+  "v012": "d527bc52b65887a0bd8532e7",
+  "v013": "897dd41505c76299205156d4"
+ }
+}

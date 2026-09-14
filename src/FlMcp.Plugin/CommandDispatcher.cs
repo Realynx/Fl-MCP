@@ -25,6 +25,13 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         RegisterReads();
         RegisterAuthoring();
         RegisterMixing();
+        RegisterRead("markers", async ct => await InvokeAsync<string>("list_markers", new { }, ct).ConfigureAwait(false));
+        Register<IndexArgs>("delete_marker", async (a, ct) =>
+        {
+            Arguments.Range(a.Index, 0, 9999, "index");
+            await InvokeTaskAsync("delete_marker", new { index = a.Index }, ct).ConfigureAwait(false);
+            return new { deleted = a.Index };
+        });
         Register<PathArgs>("save", SaveAsync);
         Register<PathArgs>("snapshot", SnapshotAsync);
         Register<PythonCall>("python_call", PythonCallAsync);
@@ -61,11 +68,30 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         if (!await InvokeAsync<bool>("is_available", new { }, ct).ConfigureAwait(false)) return new SessionStatus(false, Environment.ProcessId, "", 0, 0);
         var project = structuredQueries
             ? await InvokeAsync<FlProjectInfo>("query_project", new { }, ct).ConfigureAwait(false) : null;
-        return new SessionStatus(true, Environment.ProcessId,
+        var status = new SessionStatus(true, Environment.ProcessId,
             await InvokeAsync<string>("get_project_info", new { }, ct).ConfigureAwait(false),
             await InvokeAsync<double>("get_tempo", new { }, ct).ConfigureAwait(false), await InvokeAsync<int>("get_ppq", new { }, ct).ConfigureAwait(false))
             { ProjectPath = project?.Path, ProjectTitle = project?.Title, Untitled = project?.Untitled };
+        return WithDisplayTitle(status);
     }
+
+    private const string UntitledLine = "Title: (untitled)\n";
+
+    /// <summary>FL reports an empty title for a project opened from a copied file until it is saved again. When the
+    /// path is known, report its file name so callers are not told a named managed project is untitled.</summary>
+    public static SessionStatus WithDisplayTitle(SessionStatus status)
+    {
+        if (!string.IsNullOrWhiteSpace(status.ProjectTitle)) return status;
+        var path = status.ProjectPath ?? PathLine(status.Project);
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)) return status;
+        var title = Path.GetFileNameWithoutExtension(path);
+        var text = status.Project.StartsWith(UntitledLine, StringComparison.Ordinal)
+            ? $"Title: {title} (file name)\n" + status.Project[UntitledLine.Length..] : status.Project;
+        return status with { Project = text, ProjectTitle = title };
+    }
+
+    private static string? PathLine(string project) =>
+        project.Split('\n').LastOrDefault(line => line.StartsWith("Path: ", StringComparison.Ordinal))?[6..].Trim();
 
     private void RegisterAuthoring()
     {
@@ -115,7 +141,7 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         {
             Arguments.Range(a.Track, 0, Arguments.MaximumMixerTrack, "track");
             Arguments.Range(a.Volume, 0, 12800, "volume");
-            Arguments.Range(a.Pan, 0, 12800, "pan");
+            Arguments.Range(a.Pan, -6400, 6400, "pan");
             await InvokeTaskAsync("set_mixer_volume", new { track = a.Track, value = a.Volume }, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             await InvokeTaskAsync("set_mixer_pan", new { track = a.Track, value = a.Pan }, ct).ConfigureAwait(false);

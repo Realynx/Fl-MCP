@@ -1,0 +1,80 @@
+{
+  "title": "Ember Tides",
+  "revision": "v006",
+  "base_revision": "v005",
+  "key": "F minor",
+  "bpm": 140,
+  "bars": 112,
+  "duration_seconds": 192,
+  "notes": 2540,
+  "patterns": 127,
+  "clips": 132,
+  "lead_centering": {
+    "root_cause": "Mixer track 4 pan stored as 6800. Mixer pan readback uses 0 for centre, so 6800 is beyond hard right. The SDK setter documentation claims 6400 is centre, which is only true for channel-rack pan.",
+    "evidence_before": {
+      "source": "installer 0.1.29 isolated audition of pattern 88 with lead and master effects retained",
+      "left_rms_dbfs": -179.825,
+      "right_rms_dbfs": -33.304
+    },
+    "fix": "set_mixer_pan(track=4, value=0), verified in a separate request",
+    "evidence_after": {
+      "source": "Ember-Tides/audition-v006-lead-centered.wav, playlist reduced to the pattern 42 clip, bars 41-48, lead and master effects retained",
+      "window_seconds": [68.5, 83.0],
+      "left_rms_dbfs": -36.64,
+      "right_rms_dbfs": -36.68,
+      "left_peak_dbfs": -24.13,
+      "right_peak_dbfs": -24.65
+    },
+    "other_tracks_corrected": {
+      "mixer_pans_reset_to_zero": [2, 9, 10],
+      "intended_offsets_moved_to_channel_pan": {"2": 5900, "9": 7300, "10": 5400}
+    }
+  },
+  "lead_presence": {
+    "mixer_volume": [10800, 11500],
+    "serum_a_level": ["28% [-22.1 dB]", "55% [-10.4 dB]"],
+    "serum_a_unison": [3, 5],
+    "serum_a_uni_detune_display": ["0.01", "0.05"],
+    "serum_env1_sustain": ["-12.8 dB", "-5.7 dB"],
+    "brightness_automation_channel_18": "interior points mapped v*0.9+0.2; endpoints untouched (protected)"
+  },
+  "chords": {
+    "serum_a_uni_detune_display": ["0.03", "0.10"],
+    "serum_a_uni_blend": [72, 82],
+    "serum_sub_osc": {"enable": "On", "shape": "Saw", "octave": "-1 oct", "level": "45% [-13.9 dB]"},
+    "brightness_automation_channel_13": "interior points mapped v*1.05+0.14; endpoints untouched (protected)",
+    "chorus_sevenths_added": {"patterns": [29, 39, 85, 96, 107], "notes_per_pattern": 12, "total": 60,
+      "rule": "one seventh below the top voice per stab whose triad lacked a seventh; stabs that already contained a seventh were left alone"}
+  },
+  "persistence": {
+    "captured_state_equal": true,
+    "warnings": []
+  },
+  "render": {
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "format": "float32le",
+    "bytes": 73728950,
+    "integrated_lufs": -15.1,
+    "true_peak_dbtp": -1.0,
+    "loudness_range_lu": 7.1,
+    "analyzer": "FFmpeg ebur128=peak=true",
+    "chorus_I_window_spectral": {
+      "window_seconds": [54.857, 82.286],
+      "v005_centroid_hz": 2976, "v006_centroid_hz": 3596,
+      "v005_rolloff_hz": 5702, "v006_rolloff_hz": 7184,
+      "analyzer": "FFmpeg aspectralstats win_size=4096, mean over frames"
+    },
+    "full_mix_lr_rms_chorus_II_dbfs": {"v005": [-13.71, -13.77], "v006": [-13.41, -13.41]}
+  },
+  "audition_duration": {
+    "observation": "One 32-beat clip still rendered 178.286 s",
+    "cause": "Transport play range reads [0..39935] with only that clip present; tick 39936 is the 'Outro - afterglow' time marker at bar 105. FL extends the song end to the last time marker. Automation clips were not the cause: all five span the full 112 bars.",
+    "sdk_gap": "list_markers and add_marker exist; there is no delete_marker operation, so an audition cannot shorten a marker-extended render through the SDK."
+  },
+  "limits": [
+    "Listening feedback remains authoritative for musical quality",
+    "Sub-oscillator shape is display-verified; oscillator A wavetable identity is still not readable",
+    "No preset was loaded; all sound changes use exposed parameters"
+  ]
+}

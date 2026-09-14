@@ -1,0 +1,68 @@
+{
+ "title": "Ember Tides",
+ "revision": "v009",
+ "base_revision": "v008",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 197.14,
+ "notes": 3812,
+ "patterns": 143,
+ "clips": 156,
+ "channels": 21,
+ "feedback": "v008 arps harsh and painful",
+ "measured_cause": {
+  "window": "Chorus I (54.9-82.3 s)",
+  "band_rms_dbfs": {
+   "v007": {
+    "2-4k": -29.62,
+    ">5k": -30.54
+   },
+   "v008": {
+    "2-4k": -22.25,
+    ">5k": -25.72
+   }
+  }
+ },
+ "fix": {
+  "voice": "presets-v007/v009-drop-arp-soft.SerumPreset (SerumPatch: triangle x2 detune 0.03 width 40, sine sub 35%, lp24 2.4 kHz, env 4/220/0/150 ms, hall 20% size 60, master -12 dB)",
+  "arps": "regenerated an octave lower (65-87), velocities 62-88, Chorus I 1 eighths, others sixteenths with the same distinct figures",
+  "routing": "new mixer insert 17 'Tides - drop arp' with Pro-R 2 (mix 20%, brightness -30%), channel volume 9000, insert volume 11200"
+ },
+ "result": {
+  "band_rms_dbfs": {
+   "v009": {
+    "2-4k": -28.8,
+    ">5k": -29.12
+   }
+  },
+  "chorus_II_band_rms_dbfs": {
+   "2-4k": -28.45,
+   ">5k": -28.88
+  }
+ },
+ "persistence": {
+  "captured_state_equal": true,
+  "decoded_serum_states_compared": [
+   1,
+   4,
+   19,
+   20
+  ]
+ },
+ "render": {
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "format": "float32le",
+  "bytes": 75703806,
+  "integrated_lufs": -14.8,
+  "true_peak_dbtp": -1.0,
+  "loudness_range_lu": 7.4,
+  "chorus_I_rms_dbfs": -13.26,
+  "analyzer": "FFmpeg ebur128=peak=true, astats with highpass/bandpass"
+ },
+ "sha256_prefix": {
+  "v008": "fcdda46b39100ffc7bc5b393",
+  "v009": "eecc9618a743a33823755de1"
+ }
+}

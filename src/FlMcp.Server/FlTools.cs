@@ -5,6 +5,8 @@ using ModelContextProtocol.Server;
 
 namespace FlMcp.Server;
 
+/// <summary>MCP tools: lifecycle/ownership plus single-operation conveniences. Embedded Python (fl_execute_python)
+/// is the primary editing route; these tools never define a second DAW API.</summary>
 [McpServerToolType]
 public sealed class FlTools(ManagedSession session)
 {
@@ -59,8 +61,14 @@ public sealed class FlTools(ManagedSession session)
     [McpServerTool(Name = "fl_clip_add"), Description("Place a pattern in the playlist and select song mode for rendering. Pattern is one-based; track is one-based (1..500), using fl_playlist_list; positions and duration are PPQ ticks. Appends a clip.")]
     public Task<JsonElement> Clip(int pattern, int track, int startTick, int lengthTick, CancellationToken ct) => ToolErrors.Run(() => session.CallAsync("add_clip", new ClipArgs(pattern, track, startTick, lengthTick), ct));
 
-    [McpServerTool(Name = "fl_mixer_set"), Description("Set mixer track volume 0..12800 (about 7624=0 dB), pan 0..12800 (6400=center). Track 0=Master; active ordinary inserts are within 1..500. Use Python fl.mixer.list() for current indices; Current and dormant slots are refused.")]
-    public Task<JsonElement> Mixer(int track, int volume, CancellationToken ct, int pan = 6400) => ToolErrors.Run(() => session.CallAsync("mixer", new MixerArgs(track, volume, pan), ct));
+    [McpServerTool(Name = "fl_mixer_set"), Description("Set mixer track volume as a raw native integer 0..12800; no dB conversion is defined, so query the current value before changing it. Pan is a SIGNED mixer value -6400..6400 (0=center, negative=left, 6400=hard right); this differs from channel-rack pan (0..12800, 6400=center). Track 0=Master; active ordinary inserts are within 1..500. Use Python fl.mixer.list() for current indices; Current and dormant slots are refused.")]
+    public Task<JsonElement> Mixer(int track, int volume, CancellationToken ct, int pan = 0) => ToolErrors.Run(() => session.CallAsync("mixer", new MixerArgs(track, volume, pan), ct));
+
+    [McpServerTool(Name = "fl_markers_list", ReadOnly = true), Description("List song time markers in order with their zero-based indices and tick positions. FL extends renders and the play range to the last marker.")]
+    public Task<JsonElement> Markers(CancellationToken ct) => ToolErrors.Run(() => session.CallAsync("markers", new { }, ct));
+
+    [McpServerTool(Name = "fl_marker_delete", Destructive = true), Description("Delete one song time marker by its zero-based index from fl_markers_list. Remove trailing markers to shorten an audition render; list again afterwards because indices shift.")]
+    public Task<JsonElement> DeleteMarker(int index, CancellationToken ct) => ToolErrors.Run(() => session.CallAsync("delete_marker", new IndexArgs(index), ct));
 
     [McpServerTool(Name = "fl_channel_route"), Description("Route a zero-based generator channel to Master (0) or an active ordinary mixer insert (within 1..500). Use Python fl.mixer.list() for current indices.")]
     public Task<JsonElement> Route(int channel, int track, CancellationToken ct) => ToolErrors.Run(() => session.CallAsync("route", new ChannelRouteArgs(channel, track), ct));
@@ -83,13 +91,13 @@ public sealed class FlTools(ManagedSession session)
     [McpServerTool(Name = "fl_project_render", Destructive = true), Description("Save a verified snapshot, end the disposable editing session, and render it to a new WAV using FL's documented CLI. Output must be inside workspace and not exist. Uses FL's saved render settings; requires a working licensed GUI installation. Waits for renderer exit and validates WAV; default deadline 600s (max3600). A successful result includes audio path and snapshot path for other MCPs such as Blender. This closes the managed editing session. Refuses user-owned attached sessions.")]
     public Task<object> Render(string outputPath, CancellationToken ct, int timeoutSeconds = 600) => ToolErrors.Run(() => session.RenderAsync(outputPath, timeoutSeconds, ct));
 
-    [McpServerTool(Name = "fl_execute_python", Destructive = true), Description("Execute trusted Python embedded inside FL Studio with the reusable fruitylink SDK. Globals include fl (Studio); assign a JSON-compatible result. Use fl_python_docs and fl_python_api first. Output is bounded; the 1..300 second deadline requests cooperative cancellation. Blocking native calls must finish before execution returns or FL can close. Completed edits remain. Python shares FL's process and account permissions. Requires fl_project_start or fl_attach; use MCP project tools for lifecycle and rendering.")]
+    [McpServerTool(Name = "fl_execute_python", Destructive = true), Description("Execute trusted Python embedded inside FL Studio with the reusable fruitylink SDK; this is the primary way to inspect and edit projects, running many operations per request. Globals include fl (Studio) with channels/patterns/clips/mixer/automation/transport/plugins helpers and fl.ops; assign a JSON-compatible result with string dict keys. Use fl_python_docs and fl_python_api first. Output is bounded; the 1..300 second deadline requests cooperative cancellation. Blocking native calls must finish before execution returns or FL can close. Completed edits remain. Python shares FL's process and account permissions. Requires fl_project_start or fl_attach; use MCP project tools for lifecycle and rendering.")]
     public Task<JsonElement> ExecutePython(string code, CancellationToken ct, int timeoutSeconds = 60) =>
         ToolErrors.Run(() => session.ExecutePythonAsync(code, timeoutSeconds, ct));
 
-    [McpServerTool(Name = "fl_python_api", ReadOnly = true), Description("Discover the current SDK scripting operations, typed arguments, descriptions and defaults. Optional filter matches operation name or description. Generated from the shared public SDK contract; requires fl_project_start or fl_attach.")]
+    [McpServerTool(Name = "fl_python_api", ReadOnly = true), Description("Discover the current SDK scripting operations, typed arguments, descriptions and defaults. Optional filter matches operation name or description. Generated from the shared public SDK contract; each operation carries pythonSignature and each argument/result field carries pythonName (snake_case) for use in fl_execute_python. Requires fl_project_start or fl_attach.")]
     public Task<JsonElement> PythonApi(CancellationToken ct, string? filter = null) => ToolErrors.Run(() => session.PythonApiAsync(filter, ct));
 
-    [McpServerTool(Name = "fl_python_docs", ReadOnly = true), Description("Read Python execution conventions, API discovery and project lifecycle guidance. Available before starting FL.")]
-    public static string PythonDocs() => PythonDocumentation.Text;
+    [McpServerTool(Name = "fl_python_docs", ReadOnly = true), Description("Read Python execution conventions, helper classes, naming rules, result rules and project lifecycle guidance. Embedded Python (fl_execute_python) is the primary way to work; read this first. Available before starting FL.")]
+    public string PythonDocs() => PythonDocumentation.For(session.InstalledPythonPackage);
 }

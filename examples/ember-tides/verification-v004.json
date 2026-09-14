@@ -1,0 +1,59 @@
+{
+  "title": "Ember Tides",
+  "revision": "v004",
+  "base_revision": "v003",
+  "key": "F minor",
+  "bpm": 140,
+  "bars": 112,
+  "duration_seconds": 192,
+  "notes": 2388,
+  "patterns": 127,
+  "clips": 132,
+  "prior_patterns_with_unchanged_notes": 102,
+  "melodic_notes_before": 436,
+  "melodic_notes_after": 177,
+  "new_mid_bass_notes": 100,
+  "verified_shapes": {
+    "pluck": "Triangle + quieter saw",
+    "lead": "Square + quieter detuned saw",
+    "mid_bass": "Square + quieter saw",
+    "sub": "Sine, preserved"
+  },
+  "sound_design": {
+    "mid_bass": "Saturn 2 saturation and linked per-note filter automation",
+    "lead": "Saturn 2 saturation, revised envelopes, evolving cutoff",
+    "internal_serum_modulation_routing": false
+  },
+  "persistence": {
+    "captured_state_equal": true,
+    "notes_preserved_after_installer": true,
+    "warnings": []
+  },
+  "render": {
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "format": "float32le",
+    "bytes": 73728950,
+    "integrated_lufs": -15.5,
+    "true_peak_dbtp": -1,
+    "loudness_range_lu": 11,
+    "analyzer": "FFmpeg ebur128=peak=true"
+  },
+  "sdk": {
+    "installer": "0.1.28",
+    "named_setter_live_test": {
+      "parameter": "Band 1 Drive",
+      "index": 11,
+      "requested_normalized_value": 0.42,
+      "display_readback": "42.0%",
+      "missing_name_refused": true
+    },
+    "python_tests_passed": 246
+  },
+  "limits": [
+    "Listening feedback remains authoritative for musical quality",
+    "Preset and wavetable loading not implemented",
+    "Enum choice metadata not available",
+    "Named resolution and write are not atomic; query separately for readback"
+  ]
+}

@@ -2,6 +2,22 @@
 
 `fl_execute_python` runs the reusable **FruityLink Python SDK inside FL Studio**. The adapter supplies `fl`, a typed `Studio` object, so you can inspect and edit the connected project without constructing another connection. The private runtime is installed with FL MCP; no system Python or pip setup is required for this workflow.
 
+**Embedded Python is the primary way to work with FL MCP.** One request can run dozens of operations, keep typed results, and move between managed and attached projects. The single-operation MCP tools (`fl_notes_add`, `fl_clip_add`, `fl_mixer_set`, `fl_parameter_set`, …) are conveniences for quick edits, not the only route. The helper classes are `fl.project`, `fl.transport`, `fl.channels` (`fl.channels[i].parameters`), `fl.patterns` (`fl.patterns[n].notes`), `fl.clips` / `fl.playlist`, `fl.mixer` (`fl.mixer[t].effects[s].parameters`), `fl.automation`, `fl.plugins`, `fl.analysis`, and `fl.ops` for every generated operation. The optional `fruitylink_serum` extension adds preset inventory and audition measurement (see [Serum support](#serum-support)).
+
+`fl_python_docs` names the installed fruitylink wheel first. That installed surface is authoritative: the `fl_python_api` catalog and the SDK repository can be newer than the wheel FL loads, so check `dir(fl.ops)` or the wheel before coding against a name you have not used yet.
+
+## Naming and result rules
+
+- Python arguments are keyword-only **snake_case** even though the catalog's wire names are camelCase: `fl.ops.query_plugin_parameters(channel_or_track=4, slot=-1, offset=199, limit=1)`. `fl_python_api` returns `pythonSignature` per operation and `pythonName` per argument and result field, so you never have to convert names yourself. `get_channel_name` takes `index=`; the other channel getters take `channel=`.
+- Typed `query_*` results are dataclasses with snake_case attributes (`item.display_value`, `page.next_offset`). Raw `fl.ops.invoke(...)` results keep camelCase keys.
+- `result` must be JSON-compatible and dict keys must be strings (`str(index)`).
+- A raised exception discards the entire `result` dict, including readings gathered before the failure. Wrap risky steps in `try`/`except` and record errors inside `result`.
+- Keep results small. Write large dumps to a file from inside FL (`json.dump`) and return a summary; a response over the client's display budget is saved to a file by the client instead of shown.
+- Verify writes in a later request. A plugin's display readback can lag several rapid writes to the same parameter within one request; a single write followed by a read in the next request was consistent.
+- Parameter `filter` values are single-token substrings. Read one parameter with `offset=<index>, limit=1` instead of a filter containing spaces.
+- Song time markers extend renders: FL renders to the later of the last clip end and the last marker. Use `fl_markers_list` / `fl_marker_delete` (or `fl.ops.delete_marker(index=...)` on SDK builds that expose it) to shorten an audition.
+- Mixer pan is a signed value: `set_mixer_pan(track, value)` takes -6400..6400 with 0 at centre and 6400 hard right. Channel-rack pan stays 0..12800 with 6400 at centre. Verify stereo placement by rendering, not by readback.
+
 The complete SDK belongs to FruityLink. Use its [Python overview](https://github.com/Realynx/FL-Automation/blob/master/docs/python/index.md), [API guide](https://github.com/Realynx/FL-Automation/blob/master/docs/python/api.md), and [examples](https://github.com/Realynx/FL-Automation/blob/master/docs/python/examples.md) for reusable DAW behavior. This page explains the MCP host's execution model and restrictions.
 
 ## First script
@@ -39,6 +55,32 @@ result = fl.channels[0].parameters.page(filter="cutoff", offset=0, limit=32)
 ```
 
 Continue with the returned `nextOffset` and the same filter/limit until it is `null`. Offsets count raw parameter slots, so an empty filtered page may still have a continuation. Iteration is lazy, but converting everything to a list gathers every page and can exceed the response limit. `find(name)` requires an exact, unique parameter name.
+
+## Serum support
+
+The framework installer selects the separate Serum support component by default.
+After installation and restarting FL, its Python package imports directly:
+
+```python
+from dataclasses import asdict
+from fruitylink_serum import discover_serum_roots, query_index
+
+roots = discover_serum_roots()
+root = next(p for p in roots if (p / "System/presets.db").is_file())
+result = [asdict(p) for p in query_index(root, text="future bass", limit=12)]
+```
+
+For a supplied isolated audition WAV, call
+`fruitylink_serum.describe_wav(path, end_seconds=4)`. Results include amplitude,
+spectrum, envelope, and stereo evidence. Each call is bounded to 15 seconds and
+two million scalar samples. Use the same note/chord, velocity, and effects policy
+when comparing patches. A full mix cannot identify an individual instrument's
+waveform, and preset descriptions are not evidence of how a patch sounds.
+
+Preset loading remains a separate capability under development. This package
+does not translate a catalog match into changes to a live Serum instance. If the
+component was deselected, rerun the framework installer to add it; no system
+Python or pip installation is required for embedded use.
 
 ## Use more of the SDK
 

@@ -1,0 +1,71 @@
+{
+ "title": "Ember Tides",
+ "revision": "v017-master (final)",
+ "base_revision": "v016-master <- v015-master",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 200.57,
+ "notes": 4090,
+ "patterns": 164,
+ "clips": 185,
+ "channels": 27,
+ "markers": 10,
+ "feedback": [
+  "white noise around the first drop",
+  "sub enters too loud early in the intro",
+  "target ~-14 LUFS (Spotify) instead of -10"
+ ],
+ "diagnosis": "per-bar scan of full RMS, >4 kHz and <90 Hz bands on the v015 master",
+ "findings_v015": {
+  "bar_5": {
+   "full_jump_db": 7,
+   "sub_band_jump_db": 14,
+   "cause": "sine-sub patch ignores velocity"
+  },
+  "bars_29_32_high_band_dbfs": -30.8,
+  "fill_bars_high_band_jump_db": 6
+ },
+ "fixes_v016": {
+  "intro_sub_swell": "removed",
+  "riser": "noise 45%, reso 8, release 100 ms, master -15 dB, channel vol 5000, sweep max 0.70, note ends 100 ticks early",
+  "stutter": "4 x 16ths, velocity 62-80",
+  "fills": "velocity x0.82"
+ },
+ "rescan_v016": {
+  "full_band_jumps_over_6db": [],
+  "high_band_jumps_over_6db": [
+   9,
+   57
+  ],
+  "bars_5_8_dbfs": -21.6,
+  "riser_high_band_peak_dbfs": -35.2,
+  "fill_high_band_dbfs": -30.3
+ },
+ "master_v017": {
+  "chain": "Pro-L 2 on master only",
+  "gain_db": 2.4,
+  "ceiling_dbtp": -1.0,
+  "integrated_lufs": -14.0,
+  "loudness_range_lu": 6.0,
+  "true_peak_dbtp": -1.0,
+  "last_2s_rms_dbfs": -75.3,
+  "deliverable_44k16": {
+   "integrated_lufs": -14.0,
+   "true_peak_dbtp": -0.9
+  }
+ },
+ "persistence": {
+  "v016_captured_state_equal": true,
+  "v017_captured_state_equal": true
+ },
+ "sha256_prefix": {
+  "v016-master": "aeda4333f820c4d692415bee",
+  "v017-master": "4b06e2fcab43d6a31a82a486"
+ },
+ "deliverables": {
+  "Ember-Tides-final-master.mp3": "70bd35f9440b7123",
+  "Ember-Tides-final-master-44k16.wav": "26ce7c48763b770c",
+  "Ember-Tides-final-master.flac": "72596c33872b9905"
+ }
+}

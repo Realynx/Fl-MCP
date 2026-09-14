@@ -1,0 +1,34 @@
+{
+  "title": "Ember Tides",
+  "revision": "v007",
+  "base_revision": "v006",
+  "key": "F minor",
+  "bpm": 140,
+  "bars": 112,
+  "duration_seconds": 192,
+  "notes": 3200,
+  "patterns": 132,
+  "clips": 137,
+  "channels": 20,
+  "audition": {
+    "render": "audition-v007-candidates.wav, 64 bars, 8 candidates x 8 bars over the chorus rhythm section",
+    "candidates": ["KY - Smart Future", "MO_HA_SY_Chord_Edm_Saw", "MO_HA_SY_Perfect_Supersaws_v2", "builder supersaw stack", "LD - Analog Glow", "LD - Hypa Saw", "LD - Euphoria", "builder square lead"],
+    "side_rms_dbfs": [-28.0, -25.3, -30.4, -26.8, -22.0, -20.9, -23.6, -24.8],
+    "centroid_hz": [6073, 5798, 3437, 3510, 2738, 4045, 3269, 3330]
+  },
+  "changes": {
+    "chorus_stack_layer": {"channel": 19, "preset": "KY - Smart Future (factory, loaded by name)", "mixer_track": 1, "channel_volume": 7600, "patterns": [128, 129, 130, 131, 132], "playlist_track": 20},
+    "lead": {"channel": 4, "preset": "SerumPatch authored: square x5 detune 0.06 width 70, saw +1 oct 25%, square sub 50%, lp24 3.5 kHz reso 10, env 5/500/-6 dB/250 ms, mono porta 40 ms, hall 20% size 50, delay 214 ms 12% feedback 30, master -9 dB"},
+    "velvet_chords": {"channel": 1, "state": "restored to v006 patch via snapshot_preset file"}
+  },
+  "rejected_draft": {
+    "what": "KY - Smart Future loaded directly on channel 1",
+    "why": "oscillator direct levels are 0 and audio travels through FX buses, bypassing VoiceFilter0; the brightness-arc automation on Filter 1 Freq no longer shaped the chords",
+    "evidence": {"intro_centroid_hz": {"v006": 2564, "draft": 7877}, "verse_centroid_hz": {"v006": 2928, "draft": 6780}, "integrated_lufs": -13.2, "lra_lu": 4.1}
+  },
+  "persistence": {"captured_state_equal": true, "decoded_serum_states_compared": [1, 4, 19], "note": "raw wrapper state records differ after reopen even on untouched channels; decoded parameter diffs showed only float noise plus automation-linked values"},
+  "render": {"sample_rate_hz": 48000, "channels": 2, "format": "float32le", "bytes": 73728950, "integrated_lufs": -15.0, "true_peak_dbtp": -1.0, "loudness_range_lu": 7.3,
+    "sections": {"intro": {"centroid_hz": 2575, "lr_rms_dbfs": [-21.85, -21.89]}, "verse_I": {"centroid_hz": 2928, "lr_rms_dbfs": [-17.78, -17.75]}, "chorus_I": {"centroid_hz": 4728, "lr_rms_dbfs": [-13.37, -13.37]}, "chorus_II": {"centroid_hz": 4692, "lr_rms_dbfs": [-13.34, -13.33]}},
+    "analyzer": "FFmpeg ebur128=peak=true, aspectralstats, astats"},
+  "sha256_prefix": {"v006": "92c918f18a1e40bf36af06b0", "v007": "f718ebb8f9fb82f07c720c5b"}
+}

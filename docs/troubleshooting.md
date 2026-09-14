@@ -6,7 +6,7 @@ Start with the last successful step: client connection, FL discovery, attachment
 
 | Symptom | Check and next step |
 | --- | --- |
-| No FL MCP tools in the app | Confirm the client configuration uses its expected schema and the correct companion DLL/command path. Restart the app after installer setup. The current adapter advertises 27 tools. |
+| No FL MCP tools in the app | Confirm the client configuration uses its expected schema and the correct companion DLL/command path. Restart the app after installer setup. The current adapter advertises 29 tools. |
 | `dotnet` or runtime error | The companion targets .NET 10 and the plugin targets .NET 9. Check that the command and matching runtimes are available to the client; see [developer deployment](building.md). |
 | `fl_instances` returns nothing | Open FL, enable **FL MCP** in FruityLink's Plugins menu, and check that `FL_MCP_FL_EXE` identifies that exact executable. Discovery is restricted to the configured executable and same user. |
 | FL was open during installation | Restart FL, or enable the plugin in its Plugins menu. Restart FL after runtime/package updates before executing Python. |

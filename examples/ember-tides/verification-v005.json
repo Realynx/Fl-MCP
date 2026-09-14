@@ -1,0 +1,67 @@
+{
+  "title": "Ember Tides",
+  "revision": "v005",
+  "base_revision": "v004",
+  "key": "F minor",
+  "bpm": 140,
+  "bars": 112,
+  "duration_seconds": 192,
+  "notes": 2480,
+  "patterns": 127,
+  "clips": 132,
+  "lead": {
+    "notes_before": 40,
+    "notes_after": 132,
+    "patterns_rewritten": 6,
+    "fl_channel_pan": 6400,
+    "serum_pan_displays": {
+      "A Pan": "0",
+      "B Pan": "0",
+      "C Pan": "0",
+      "Noise Pan": "0",
+      "Sub Pan": "0"
+    },
+    "timeless_before": {
+      "ping_pong": "Ping Pong R-L",
+      "mix": "12.0%"
+    },
+    "timeless_after": {
+      "ping_pong": "Ping Pong Off",
+      "mix": "0.00%"
+    }
+  },
+  "drop_snare": {
+    "patterns": 5,
+    "notes": 40,
+    "velocity_before": 111,
+    "velocity_after": 88,
+    "timing_changed": false
+  },
+  "persistence": {
+    "captured_state_equal": true,
+    "warnings": []
+  },
+  "render": {
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "format": "float32le",
+    "bytes": 73728950,
+    "integrated_lufs": -16.0,
+    "true_peak_dbtp": -1.0,
+    "loudness_range_lu": 10.4,
+    "analyzer": "FFmpeg ebur128=peak=true"
+  },
+  "optional_serum_support": {
+    "version": "0.1.0",
+    "embedded_python": "3.14.6",
+    "metadata_matches_for_future_bass": 9,
+    "synthetic_audio_checks_passed": true,
+    "song_state_changed_by_smoke_test": false,
+    "preset_loaded": false
+  },
+  "limits": [
+    "Listening feedback remains authoritative for musical quality",
+    "Preset metadata is not evidence that a preset was auditioned",
+    "Safe preset filename loading remains unavailable"
+  ]
+}

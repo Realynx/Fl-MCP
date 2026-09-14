@@ -12,6 +12,16 @@
 
 Work on an open FL Studio project, or let an agent start a disposable project, author music, save snapshots, and render a WAV. **27 MCP tools** cover discovery, authoring, project management, and embedded Python. The shared FruityLink SDK adds typed access to notes, playlist clips, mixer routing/effects, automation, and offline audio analysis.
 
+## Example: Ember Tides
+
+An original future-bass track composed, revised, mixed and mastered entirely through FL MCP and the
+embedded Python API, in eighteen small listener-driven revisions with persistence and render
+verification at every step. It is the first track of an album being produced to exercise the MCP.
+
+- **Listen:** [Ember-Tides-final-master.mp3](examples/ember-tides/Ember-Tides-final-master.mp3) (3:20, -14 LUFS, -1 dBTP)
+- **Project file:** [Ember-Tides.flp](examples/ember-tides/Ember-Tides.flp) (FL Studio 2026, Serum 2, FabFilter; drum samples not included)
+- **Revision history and verification records:** [examples/ember-tides](examples/ember-tides/README.md)
+
 **[Open the documentation site →](https://realynx.github.io/Fl-MCP/)**
 
 [Browse the documentation's Markdown source](docs/index.md).
@@ -26,6 +36,11 @@ Work on an open FL Studio project, or let an agent start a disposable project, a
 | Build FL MCP from source | [Developer guide](https://realynx.github.io/Fl-MCP/building/) |
 
 The recommended setup is the FruityLink framework installer with **FLMCP** selected. You need Windows x64, a licensed compatible FL Studio installation, and an interactive desktop session. The installer bundles private Python; FL MCP does not need system Python, pip, or its own AI provider key.
+
+**Serum support** is also selected by default in current framework bundles. It adds
+local preset searches and audition-audio descriptions through `fruitylink_serum`,
+using the same embedded Python runtime. You can deselect it in the installer.
+See [Python extensions](docs/python.md#serum-support).
 
 **Availability:** the verified installer **0.1.26** is locally prepared and has not been published; obtain a matching bundle from the maintainer or use the source build guide. Published installers belong on the [framework releases page](https://github.com/Realynx/FL-Automation/releases). SDK 0.2.0 packages are not assumed available on NuGet or PyPI.
 

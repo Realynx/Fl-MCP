@@ -1,0 +1,43 @@
+{
+  "revision": "v003",
+  "feedback": "Build drums irritating; parts do not groove together.",
+  "before": {
+    "notes": 2979,
+    "build_snare_notes": {
+      "Build I 1 | Breakwater": 108,
+      "Build II 1 | Breakwater": 108
+    },
+    "duplicate_note_instances": 20,
+    "chorus_bass_on_kick_ticks": 20,
+    "chorus_bass_notes": 100
+  },
+  "after": {
+    "notes": 2547,
+    "build_snare_notes": {
+      "Build I 1 | Breakwater": 11,
+      "Build II 1 | Breakwater": 11
+    },
+    "duplicate_note_instances": 0,
+    "chorus_bass_on_kick_ticks": 95,
+    "chorus_bass_notes": 100
+  },
+  "pattern_ids_preserved": true,
+  "metric_limit": "Coincident onsets measure editing intent, not perceived groove or sample latency.",
+  "persistence": {
+    "notes": 2547,
+    "patterns": 122,
+    "clips": 125,
+    "verified": true,
+    "all_captured_state_preserved": true
+  },
+  "render": {
+    "loudness_range_lu": 10.8,
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "true_peak_dbtp": -1.0,
+    "analyzer": "FFmpeg ebur128=peak=true",
+    "duration_seconds": 192,
+    "integrated_lufs": -15.5,
+    "bytes": 73728950
+  }
+}

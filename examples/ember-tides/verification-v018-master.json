@@ -1,0 +1,56 @@
+{
+ "title": "Ember Tides",
+ "revision": "v018-master (final)",
+ "base_revision": "v017-master",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 200.57,
+ "notes": 4070,
+ "patterns": 164,
+ "clips": 183,
+ "channels": 27,
+ "markers": 10,
+ "feedback": "out-of-place triplet-like chord sequence at the start of each drop",
+ "fix": {
+  "chord_stutter": "pattern 163 clips at bars 25 and 73 deleted, pattern emptied",
+  "chord_pump": "automation 26 holds 0.92 through beat 1 of each chorus; dips start at beat 2"
+ },
+ "measurements": {
+  "last_beat_before_drop_rms_dbfs": {
+   "bar_32": {
+    "v017": -18.48,
+    "v018": -24.25
+   },
+   "bar_80": {
+    "v017": -12.85,
+    "v018": -19.15
+   }
+  },
+  "drop_downbeat_rms_dbfs": {
+   "bar_33": {
+    "v017": -12.27,
+    "v018": -11.07
+   },
+   "bar_81": {
+    "v017": -11.93,
+    "v018": -10.89
+   }
+  },
+  "integrated_lufs": -14.0,
+  "loudness_range_lu": 6.0,
+  "true_peak_dbtp": -1.0
+ },
+ "persistence": {
+  "captured_state_equal": true
+ },
+ "sha256_prefix": {
+  "v017-master": "4b06e2fcab43d6a31a82a486",
+  "v018-master": "6682fa5572e07e8f367b994e"
+ },
+ "deliverables": {
+  "Ember-Tides-final-master.mp3": "7f3c20bcbec1b967",
+  "Ember-Tides-final-master-44k16.wav": "465524f9274573e2",
+  "Ember-Tides-final-master.flac": "2a1c26d19efb9e9b"
+ }
+}

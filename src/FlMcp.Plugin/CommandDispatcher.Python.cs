@@ -19,10 +19,8 @@ public sealed partial class CommandDispatcher
         // Plugin assemblies may be shadow-copied. Resolve defaults from the actual FL executable.
         var flRoot = Path.GetDirectoryName(Environment.ProcessPath)
             ?? throw new InvalidOperationException("Cannot locate the FL Studio executable directory.");
-        var python = Path.Combine(flRoot, "FruityLink", "tools", "fl-mcp", "python");
-        var runtime = Environment.GetEnvironmentVariable("FL_MCP_PYTHON_RUNTIME") ?? Path.Combine(python, "runtime");
-        var package = Environment.GetEnvironmentVariable("FL_MCP_PYTHON_PATH") ?? Path.Combine(python, "fruitylink_python-0.2.0-py3-none-any.whl");
-        return new EmbeddedPythonRuntime(new EmbeddedPythonOptions(runtime, package), handler);
+        var options = EmbeddedPythonRuntimeLocator.Resolve(Path.Combine(flRoot, "FruityLink"));
+        return new EmbeddedPythonRuntime(options, handler);
     }
 
     private async Task<object?> PythonExecuteAsync(PythonExecute request, CancellationToken ct)

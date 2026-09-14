@@ -24,7 +24,7 @@ public sealed record IndexArgs(int Index);
 public sealed record NotesArgs(int Pattern, Note[] Notes);
 public sealed record ReadNotesArgs(int Pattern, int Channel = -1, int Offset = 0);
 public sealed record ClipArgs(int Pattern, int Track, int StartTick, int LengthTick);
-public sealed record MixerArgs(int Track, int Volume, int Pan = 6400);
+public sealed record MixerArgs(int Track, int Volume, int Pan = 0);
 public sealed record ChannelRouteArgs(int Channel, int Track);
 public sealed record EffectArgs(int Track, int Slot, string Name);
 public sealed record ParamArgs(int ChannelOrTrack, int Slot, int Parameter, double Value);

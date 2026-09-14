@@ -1,0 +1,91 @@
+{
+ "title": "Ember Tides",
+ "revision": "v011",
+ "base_revision": "v010",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 195.43,
+ "notes": 4017,
+ "patterns": 155,
+ "clips": 168,
+ "channels": 23,
+ "changes": {
+  "reverse_cymbal": "clip of pattern 38 at bar 108 deleted",
+  "lead_tape_stop": {
+   "note": "pattern 147 final F5 extended to 1500 ticks",
+   "automation": "channel 21 -> Serum Pitch Bend (param 7) on channel 4; points (beats) 0:0.5, 28:0.5, 36:0.0, 40:0.0 relative to bar 105; clip 10 bars on track 23",
+   "bend_range": "kParamBendRangeDn -24 baked into the preset (a plain set_plugin_param was reset by the subsequent preset load)",
+   "isolated_f0_track_hz": {
+    "12.0": 667,
+    "12.5": 552,
+    "13.0": 432,
+    "13.5": 364,
+    "14.0": 296,
+    "14.5": 239,
+    "15.0": 198,
+    "15.25": 178
+   }
+  },
+  "lead_patch": "v011-lantern-lead-bend.SerumPreset: square x7 det 0.10 width 100 + pulse +1 oct x3 + saw -1 oct + square sub, lp24 4 kHz reso 12 drive 15, env 5/500/-6/250, mono porta 40, hyper 30, chorus 18, hall 20, delay 214 ms 12%, master -6 dB",
+  "wide_pad": {
+   "channel": 22,
+   "preset": "PD - Airy Chant (factory, loaded by name; clip player and arp off)",
+   "mixer_track": 5,
+   "channel_volume": 7000,
+   "patterns": [
+    150,
+    151,
+    152,
+    153,
+    154,
+    155
+   ],
+   "playlist_track": 24
+  }
+ },
+ "stereo_width_side_rms_dbfs": {
+  "chorus_I": {
+   "v010": -24.05,
+   "v011": -22.21
+  },
+  "chorus_II": {
+   "v010": -24.01,
+   "v011": -21.85
+  }
+ },
+ "presence_bands_chorus_I_dbfs": {
+  "v009": {
+   "2-4k": -28.8,
+   ">5k": -29.12
+  },
+  "v011": {
+   "2-4k": -28.23,
+   ">5k": -29.12
+  }
+ },
+ "persistence": {
+  "captured_state_equal": true,
+  "decoded_serum_states_compared": [
+   1,
+   4,
+   19,
+   20,
+   22
+  ]
+ },
+ "render": {
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "format": "float32le",
+  "bytes": 75045518,
+  "integrated_lufs": -14.2,
+  "true_peak_dbtp": -1.0,
+  "loudness_range_lu": 6.2,
+  "analyzer": "FFmpeg ebur128, astats mid/side, autocorrelation f0 in Python"
+ },
+ "sha256_prefix": {
+  "v010": "468cf1cca55d33f091cc971c",
+  "v011": "f2be239beed17fdf4ee92d8e"
+ }
+}

@@ -72,7 +72,7 @@ The four-bar **Neon Steps** sampler fixture rendered at 128 BPM / 96 PPQ to 7.5 
 
 Use a disposable project and licensed assets. Record the complete FL version, installer/SDK revisions, Windows version, and generator/effect versions.
 
-1. Install a matching host/plugin, private runtime, and wheel; enable FL MCP and register the client. Confirm **27 tools** are advertised. Read `fl_python_docs` and `fl_python_api`.
+1. Install a matching host/plugin, private runtime, and wheel; enable FL MCP and register the client. Confirm **29 tools** are advertised. Read `fl_python_docs` and `fl_python_api`.
 2. Start `sessions/smoke.flp` using `fl_project_start`; verify PID, loaded project path, tempo and PPQ. Author notes and playlist clips, read them back, save a fresh snapshot, and reopen it.
 3. Render a new WAV with `fl_project_render`. Check successful renderer exit, sample format, duration, finite samples, and expected audio content. Resume the returned snapshot via `sourceProjectPath` and verify earlier files remain unchanged.
 4. In separate disposable projects, verify mixer insertion around routed/effected tracks and automation creation/editing/save/reopen. Render an envelope with a predictable level change and measure both regions.

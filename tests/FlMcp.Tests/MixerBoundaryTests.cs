@@ -66,6 +66,46 @@ public sealed class MixerBoundaryTests
         _ => throw new ArgumentException(operation)
     };
 
+    [Theory]
+    [InlineData(-6401)]
+    [InlineData(6401)]
+    [InlineData(12800)]
+    public async Task MixerPanOutsideSignedNativeRangeNeverReachesSdk(int pan)
+    {
+        using var files = new TestFiles();
+        var fl = DispatchProxy.Create<INativeFlControl, MixerControl>();
+        await using var dispatcher = new CommandDispatcher(fl, new WorkspacePaths(files.Root));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            dispatcher.DispatchAsync("mixer", Messages.Element(new MixerArgs(1, 7000, pan)), CancellationToken.None));
+        Assert.Empty(((MixerControl)fl).Calls);
+    }
+
+    [Fact]
+    public async Task MixerPanDefaultsToCentreAndPassesSignedValuesThrough()
+    {
+        using var files = new TestFiles();
+        var fl = DispatchProxy.Create<INativeFlControl, MixerControl>();
+        await using var dispatcher = new CommandDispatcher(fl, new WorkspacePaths(files.Root));
+        Assert.Equal(0, new MixerArgs(1, 7000).Pan);
+        await dispatcher.DispatchAsync("mixer", Messages.Element(new MixerArgs(1, 7000, -6400)), CancellationToken.None);
+        var pan = Assert.Single(((MixerControl)fl).Calls, call => call.Name == nameof(INativeFlControl.SetMixerPanAsync));
+        Assert.Equal(-6400, pan.Args[1]);
+    }
+
+    [Fact]
+    public async Task DeleteMarkerForwardsIndexToSharedSdk()
+    {
+        using var files = new TestFiles();
+        var fl = DispatchProxy.Create<INativeFlControl, MixerControl>();
+        await using var dispatcher = new CommandDispatcher(fl, new WorkspacePaths(files.Root));
+        await dispatcher.DispatchAsync("delete_marker", Messages.Element(new IndexArgs(8)), CancellationToken.None);
+        var call = Assert.Single(((MixerControl)fl).Calls);
+        Assert.Equal(nameof(INativeFlControl.DeleteMarkerAsync), call.Name);
+        Assert.Equal(8, call.Args[0]);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            dispatcher.DispatchAsync("delete_marker", Messages.Element(new IndexArgs(-1)), CancellationToken.None));
+    }
+
     public class MixerControl : DispatchProxy
     {
         public List<(string Name, object?[] Args)> Calls { get; } = [];

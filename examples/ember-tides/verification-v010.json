@@ -1,0 +1,92 @@
+{
+ "title": "Ember Tides",
+ "revision": "v010",
+ "base_revision": "v009",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 197.14,
+ "notes": 3913,
+ "patterns": 149,
+ "clips": 162,
+ "channels": 21,
+ "feedback": "cadence came out of nowhere at the ending and the ending sat thin",
+ "changes": {
+  "interlude_bars_49_56": {
+   "chords_pattern_50": "Bbm7 (2 bars) -> Csus4 -> C7 -> Fm(add9) (2 bars) -> Db -> Eb",
+   "motif_51": "closing line F Ab G E F then Ab Bb rising into Verse II",
+   "pad_52": "follows the cadence",
+   "sub_144": "Bb2 C3 F2 Db2 Eb2 on channel 3, new clip at bar 49"
+  },
+  "outro_bars_105_112": {
+   "stack_145": "chorus stack doubles the cadence chords, velocity -10",
+   "mid_bass_146": "roots Bb3 C4 F3",
+   "lead_147": "G5 E5 F5 doubling the closing line",
+   "arp_148": "eighth-note up-down over the cadence, 48 notes, stops at the tonic",
+   "pulse_149": "kicks at bar 105 and bar 109",
+   "pad_121": "one top voice added per chord"
+  }
+ },
+ "persistence": {
+  "captured_state_equal": true,
+  "decoded_serum_states_compared": [
+   1,
+   4,
+   19,
+   20
+  ]
+ },
+ "render": {
+  "sample_rate_hz": 48000,
+  "channels": 2,
+  "format": "float32le",
+  "bytes": 75703806,
+  "integrated_lufs": -14.7,
+  "true_peak_dbtp": -1.0,
+  "loudness_range_lu": 5.8,
+  "sections": {
+   "interlude": {
+    "v009": {
+     "centroid_hz": 2519,
+     "rms_dbfs": -21.91
+    },
+    "v010": {
+     "centroid_hz": 2215,
+     "rms_dbfs": -18.45
+    }
+   },
+   "outro": {
+    "v009": {
+     "centroid_hz": 2031,
+     "rms_dbfs": -20.35
+    },
+    "v010": {
+     "centroid_hz": 5957,
+     "rms_dbfs": -18.94
+    }
+   },
+   "presence_check_v010": {
+    "chorus_I": {
+     "all": -13.25,
+     "2-4k": -28.8,
+     ">5k": -29.12
+    },
+    "outro": {
+     "all": -18.94,
+     "2-4k": -33.27,
+     ">5k": -33.04
+    },
+    "final_Fm": {
+     "all": -22.18,
+     "2-4k": -35.93,
+     ">5k": -34.53
+    }
+   }
+  },
+  "analyzer": "FFmpeg ebur128=peak=true, aspectralstats, astats with highpass/bandpass"
+ },
+ "sha256_prefix": {
+  "v009": "eecc9618a743a33823755de1",
+  "v010": "468cf1cca55d33f091cc971c"
+ }
+}

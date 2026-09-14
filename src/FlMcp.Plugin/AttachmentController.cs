@@ -14,16 +14,20 @@ public sealed class AttachmentController : IAsyncDisposable
     private readonly string executable;
     private readonly Func<int, long?> processStamp;
     private readonly Func<WorkspacePaths, EmbeddedPythonOptions, CommandDispatcher> createDispatcher;
+    private readonly Func<string, string?, string?, EmbeddedPythonOptions> resolvePython;
     private Lease? lease;
     private EmbeddedPythonOptions? initializedPython;
 
     public AttachmentController(INativeFlControl fl, string instanceId, string executable,
         Func<int, long?>? processStamp = null,
-        Func<WorkspacePaths, EmbeddedPythonOptions, CommandDispatcher>? createDispatcher = null)
+        Func<WorkspacePaths, EmbeddedPythonOptions, CommandDispatcher>? createDispatcher = null,
+        Func<string, string?, string?, EmbeddedPythonOptions>? resolvePython = null)
     {
         this.instanceId = instanceId;
         this.executable = executable;
         this.processStamp = processStamp ?? ReadProcessStamp;
+        this.resolvePython = resolvePython ?? ((host, runtime, package) =>
+            EmbeddedPythonRuntimeLocator.Resolve(host, runtime, package));
         this.createDispatcher = createDispatcher ?? ((paths, options) =>
             new CommandDispatcher(fl, paths, handler =>
             {
@@ -97,17 +101,16 @@ public sealed class AttachmentController : IAsyncDisposable
 
     private EmbeddedPythonOptions RuntimeOptions(AttachRequest request)
     {
-        var root = Path.Combine(Path.GetDirectoryName(executable)!, "FruityLink", "tools", "fl-mcp", "python");
-        var runtime = request.PythonRuntimeDirectory ?? Path.Combine(root, "runtime");
-        var package = request.PythonPackagePath ?? Path.Combine(root, "fruitylink_python-0.2.0-py3-none-any.whl");
-        if (!Path.IsPathFullyQualified(runtime) || !Path.IsPathFullyQualified(package))
-            throw new ArgumentException("Embedded Python runtime and package paths must be absolute.");
-        return new(Path.GetFullPath(runtime), Path.GetFullPath(package));
+        var host = Path.Combine(Path.GetDirectoryName(executable)!, "FruityLink");
+        return resolvePython(host, request.PythonRuntimeDirectory, request.PythonPackagePath);
     }
 
     private static bool SameOptions(EmbeddedPythonOptions first, EmbeddedPythonOptions second) =>
         string.Equals(first.RuntimeDirectory, second.RuntimeDirectory, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(first.PythonPackagePath, second.PythonPackagePath, StringComparison.OrdinalIgnoreCase);
+        string.Equals(first.PythonPackagePath, second.PythonPackagePath, StringComparison.OrdinalIgnoreCase) &&
+        first.ExtensionPackagePaths.Count == second.ExtensionPackagePaths.Count &&
+        first.ExtensionPackagePaths.Zip(second.ExtensionPackagePaths).All(paths =>
+            string.Equals(paths.First, paths.Second, StringComparison.OrdinalIgnoreCase));
 
     private static long? ReadProcessStamp(int processId)
     {

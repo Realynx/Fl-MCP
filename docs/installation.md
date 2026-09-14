@@ -25,6 +25,12 @@ End users do not need system Python, pip, or an AI provider key for FL MCP itsel
 5. Leave **Dry run (preview only)** unchecked and click **Install**. Approve the Windows administrator prompt if shown, and wait for installation and client setup to finish.
 6. Restart the configured AI apps. Open FL Studio and let the project finish loading. After future plugin/runtime updates, restart FL before using the plugin.
 
+Current bundles also select **Serum support** by default. Keep it selected to use
+`fruitylink_serum` in MCP or the Python IDE without extra Python setup. It remains
+a separate component and can be deselected. It provides local preset inventory
+and audition-audio measurements; automatic factory-preset loading is not yet
+implemented. See [Serum support](python.md#serum-support).
+
 Continue with [your first connection](getting-started.md#read-an-open-project). A successful setup lets your client read `fl_python_docs` and discover your FL process with `fl_instances`.
 
 ## Configure an app manually

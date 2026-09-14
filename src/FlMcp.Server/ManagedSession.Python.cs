@@ -13,7 +13,7 @@ public sealed partial class ManagedSession
         {
             var reply = await PythonCallCoreAsync("catalog", Messages.Element(new { filter }), ct).ConfigureAwait(false);
             if (reply.Error is not null) throw new InvalidOperationException(reply.Error.Value.GetRawText());
-            return reply.Result ?? throw new InvalidDataException("SDK catalog was empty.");
+            return PythonCatalog.Annotate(reply.Result ?? throw new InvalidDataException("SDK catalog was empty."));
         }
         finally { gate.Release(); }
     }

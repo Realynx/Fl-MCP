@@ -1,0 +1,25 @@
+{
+  "title": "Ember Tides",
+  "revision": "v008",
+  "base_revision": "v007",
+  "key": "F minor",
+  "bpm": 140,
+  "bars": 112,
+  "duration_seconds": 197.14,
+  "notes": 3876,
+  "patterns": 143,
+  "clips": 156,
+  "channels": 21,
+  "changes": {
+    "drop_arps": {"channel": 20, "preset": "PL - Harp Wire (factory, loaded by name)", "mixer_track": 2, "channel_volume": 10500, "patterns": {"134": "Chorus I 1 up", "135": "Chorus I 2 updown", "136": "Chorus II 1 zigzag", "137": "Chorus II 2 syncopated", "138": "Chorus II 3 downup with swell and final-bar rest"}, "playlist_track": 21, "audition": "audition-v008-arps.mp3 (Harp Wire, Magic Harp, builder pluck)"},
+    "drums": {"playlist_track": 22, "patterns": {"139": "snare run + clap tail at bars 40, 48, 72, 88, 96, 104", "140": "off-sixteenth hats Chorus II 2", "141": "open-hat lifts Chorus II 3", "142": "off-beat claps Chorus I 2", "143": "ghost claps Verse II"}},
+    "lead_audibility": {"patterns": [57, 68], "velocity_delta": 14, "preset_master_db": [-9, -6], "mixer_track_4": [11500, 12000]},
+    "motif_variation": {"40": "diatonic mirror around F5", "97": "eighth displacement, two notes dropped", "108": "retrograde pitches", "55": "second half displaced", "66": "second half up a diatonic third"},
+    "outro_cadence": {"chords": "Bbm7 (2 bars) -> Csus4 -> C7 -> Fm(add9) (4 bars)", "sub_pattern": 133, "motif": "F5 Ab5 ... G5 E5 F5", "fades": "hold to beat 444, release over the last bar", "extras": "reverse cymbal at bar 108, crash at bar 109"}
+  },
+  "persistence": {"captured_state_equal": true, "decoded_serum_states_compared": [1, 4, 19, 20]},
+  "render": {"sample_rate_hz": 48000, "channels": 2, "format": "float32le", "bytes": 75703806, "integrated_lufs": -13.7, "true_peak_dbtp": -1.0, "loudness_range_lu": 9.1,
+    "sections": {"intro": {"centroid_hz": 2564, "lr_rms_dbfs": [-21.84, -21.85]}, "chorus_I": {"centroid_hz": 4594, "lr_rms_dbfs": [-12.61, -12.61]}, "verse_II_2_lead": {"centroid_hz": 3332, "lr_rms_dbfs": [-17.31, -17.25], "v007_rms_dbfs": -17.63}, "chorus_II": {"centroid_hz": 4632, "lr_rms_dbfs": [-12.64, -12.62]}, "outro": {"centroid_hz": 2277, "lr_rms_dbfs": [-20.36, -20.33]}},
+    "analyzer": "FFmpeg ebur128=peak=true, aspectralstats, astats"},
+  "sha256_prefix": {"v007": "f718ebb8f9fb82f07c720c5b", "v008": "fcdda46b39100ffc7bc5b393"}
+}

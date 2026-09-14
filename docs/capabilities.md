@@ -1,6 +1,6 @@
 # Capabilities and compatibility
 
-FL MCP exposes 27 tools and the shared FruityLink Python SDK. Tool availability describes the adapter's interface; a successful operation also depends on the selected FL build, installed plugins, loaded project, and native SDK capabilities. Query `fl_python_api` and `fl.capabilities()` after connecting.
+FL MCP exposes 29 tools and the shared FruityLink Python SDK. Tool availability describes the adapter's interface; a successful operation also depends on the selected FL build, installed plugins, loaded project, and native SDK capabilities. Query `fl_python_api` and `fl.capabilities()` after connecting.
 
 ## What you can do
 

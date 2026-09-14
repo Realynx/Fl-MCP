@@ -1,6 +1,8 @@
 # MCP tool reference
 
-These are the **27 tools** currently declared in [FlTools.cs](https://github.com/Realynx/Fl-MCP/blob/master/src/FlMcp.Server/FlTools.cs). Inputs use the spelling shown below. A value after `=` is a default; inputs without a default are required. Your MCP client supplies the protocol envelope and cancellation token.
+These are the **29 tools** currently declared in [FlTools.cs](https://github.com/Realynx/Fl-MCP/blob/master/src/FlMcp.Server/FlTools.cs). Inputs use the spelling shown below. A value after `=` is a default; inputs without a default are required. Your MCP client supplies the protocol envelope and cancellation token.
+
+Embedded Python through `fl_execute_python` is the primary way to work: one request can run many operations with typed results across the helper classes. The single-operation authoring tools below are conveniences for quick edits and never define a second DAW API. See [the Python guide](python.md).
 
 `fl_instances`, `fl_attach`, `fl_project_start`, and `fl_python_docs` are connection/setup entry points. Project inspection, authoring, and API discovery require an attached or disposable session. All output paths must be fresh and inside the workspace. See [session configuration](sessions.md) for full ownership and recovery rules.
 
@@ -58,7 +60,9 @@ Notes and clips append. If a request fails or its response is lost, inspect the 
 
 | Tool | Inputs | Behavior |
 | --- | --- | --- |
-| `fl_mixer_set` | `track`, `volume`, `pan=6400` | Mixer volume/pan use 0–12800; roughly 7624 volume is 0 dB and 6400 pan is center. |
+| `fl_mixer_set` | `track`, `volume`, `pan=0` | Mixer volume is a raw native integer from 0–12800; no dB conversion is defined, so query the current value before changing it. Pan is a signed mixer value from -6400 to 6400: 0 is center, negative is left, 6400 is hard right. This differs from channel-rack pan (0–12800, 6400 center); earlier revisions documented the channel scale here, which parked tracks hard right. |
+| `fl_markers_list` | None | Lists song time markers with zero-based indices and tick positions. FL extends renders and the play range to the last marker. |
+| `fl_marker_delete` | `index` | Deletes one marker by its zero-based index. Remove trailing markers to shorten an audition render; list again afterwards because indices shift. |
 | `fl_channel_route` | `channel`, `track` | Routes a zero-based generator to Master (0) or an active ordinary mixer insert. |
 | `fl_effect_add` | `track`, `slot`, `name` | Loads an exact installed effect name into slot 0–9, replacing any existing effect in that slot. |
 | `fl_parameter_set` | `channelOrTrack`, `slot`, `parameter`, `value` | Sets a discovered parameter to normalized 0–1. `slot=-1` addresses a generator; 0–9 addresses a mixer effect. |
@@ -69,8 +73,8 @@ Discover active mixer indices with Python `fl.mixer.list()`. Master is 0; active
 
 | Tool | Inputs | Behavior |
 | --- | --- | --- |
-| `fl_python_docs` | None | Returns execution conventions and lifecycle guidance, even before connecting to FL. |
-| `fl_python_api` | `filter=null` | Returns operations, typed arguments, descriptions, and defaults from the shared SDK contract. Matches the optional filter against operation names/descriptions. |
+| `fl_python_docs` | None | Returns execution conventions, helper classes, naming and result rules, and lifecycle guidance, even before connecting to FL. Names the installed fruitylink wheel up front. |
+| `fl_python_api` | `filter=null` | Returns operations, typed arguments, descriptions, and defaults from the shared SDK contract. Matches the optional filter against operation names/descriptions. Wire names stay camelCase; each operation carries `pythonSignature` and each argument/result field carries `pythonName` (snake_case) for use in scripts. |
 | `fl_execute_python` | `code`, `timeoutSeconds=60` | Runs trusted Python inside FL with `fl` supplied as a `Studio`. Deadline range: 1–300 seconds; cancellation is cooperative. |
 
 Use [the Python guide](python.md) for results, paging, automation, audio analysis, and links to the complete reusable SDK documentation.

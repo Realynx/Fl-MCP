@@ -1,0 +1,58 @@
+{
+ "title": "Ember Tides",
+ "revision": "v015-master",
+ "base_revision": "v014 (details/mix) <- v013",
+ "key": "F minor",
+ "bpm": 140,
+ "bars": 112,
+ "duration_seconds": 200.57,
+ "notes": 4111,
+ "patterns": 164,
+ "clips": 186,
+ "channels": 27,
+ "markers": 10,
+ "v014_details": {
+  "riser": "channel 24 noise patch, Filter 1 sweep automation 0.30->0.92 over bars 29-32 and 77-80",
+  "chord_stutter": "pattern 163, 8 x 32nd hits on the last beat before each drop",
+  "chord_pump": "automation channel 26 -> mixer track 1 volume, per-beat 0.92->0.52->0.92, choruses only",
+  "sparkle": "pluck C6 at bars 49 and 53",
+  "end_silence": "marker End at bar 118 extends the render ~2 s past the final tail"
+ },
+ "master": {
+  "chain": "Pro-L 2 on master only",
+  "gain_db": 7.0,
+  "ceiling_dbtp": -1.0,
+  "gain_param_scale": "0..1 = 0..30 dB linear",
+  "eq": "none (no spectral tilt found)"
+ },
+ "measurements": {
+  "integrated_lufs": -10.1,
+  "loudness_range_lu": 4.7,
+  "true_peak_dbtp": -1.0,
+  "section_rms_dbfs": {
+   "intro": -15.7,
+   "chorus_I": -10.4,
+   "interlude": -13.4,
+   "chorus_II": -10.5,
+   "outro": -12.0
+  },
+  "last_2s_rms_dbfs": -71.0,
+  "deliverable_44k16": {
+   "integrated_lufs": -10.1,
+   "true_peak_dbtp": -0.9
+  }
+ },
+ "persistence": {
+  "v014_captured_state_equal": true,
+  "v015_captured_state_equal": true
+ },
+ "sha256_prefix": {
+  "v014": "8143c7cfe814e4ae23501228",
+  "v015-master": "da2df4c826f4ab769b60dbc3"
+ },
+ "deliverables": [
+  "Ember-Tides-final-master.mp3",
+  "Ember-Tides-final-master-44k16.wav",
+  "Ember-Tides-final-master.flac"
+ ]
+}

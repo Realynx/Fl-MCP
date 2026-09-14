@@ -65,4 +65,23 @@ public sealed class DispatcherTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => dispatcher.DispatchAsync("add_clip", Messages.Element(new ClipArgs(1, track, 0, 96)), CancellationToken.None));
         Assert.Empty(((RecordingFl)fl).Calls);
     }
+
+    [Fact]
+    public void ReportsFileNameWhenFlLeavesAManagedProjectUntitled()
+    {
+        var status = new SessionStatus(true, 1, "Title: (untitled)\nPath: C:/work/session-v006-lead.flp\nSaved: yes", 140, 96)
+            { ProjectPath = @"C:\work\session-v006-lead.flp", ProjectTitle = "" };
+        var shown = CommandDispatcher.WithDisplayTitle(status);
+        Assert.Equal("session-v006-lead", shown.ProjectTitle);
+        Assert.StartsWith("Title: session-v006-lead (file name)\nPath: ", shown.Project);
+    }
+
+    [Fact]
+    public void KeepsRealTitlesAndTrulyUntitledProjects()
+    {
+        var titled = new SessionStatus(true, 1, "Title: Song\nPath: C:/work/song.flp\nSaved: yes", 140, 96) { ProjectTitle = "Song", ProjectPath = @"C:\work\song.flp" };
+        Assert.Same(titled, CommandDispatcher.WithDisplayTitle(titled));
+        var untitled = new SessionStatus(true, 1, "Title: (untitled)\nPath: (none)\nSaved: no", 140, 96) { ProjectTitle = "", Untitled = true };
+        Assert.Same(untitled, CommandDispatcher.WithDisplayTitle(untitled));
+    }
 }

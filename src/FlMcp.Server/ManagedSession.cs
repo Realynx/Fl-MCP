@@ -16,6 +16,12 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
     private IReadOnlyList<SessionWarning> launchWarnings = [];
     private bool ownedBackground;
 
+    /// <summary>File name of the fruitylink wheel this server hands to FL, so documentation can name the installed contract.</summary>
+    public string InstalledPythonPackage =>
+        settings.PythonPackagePath is { } explicitPackage ? Path.GetFileName(explicitPackage)
+        : settings.Executable is not null ? Path.GetFileName(settings.ResolvePythonPackage())
+        : "unknown (FL executable not configured)";
+
     public async Task<SessionStatus> LaunchAsync(string projectPath, int timeoutSeconds, CancellationToken ct,
         string? sourceProjectPath = null, bool background = false)
     {

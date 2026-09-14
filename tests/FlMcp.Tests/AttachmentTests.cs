@@ -194,6 +194,29 @@ public sealed class AttachmentTests
     }
 
     [Fact]
+    public async Task AttachUsesSharedHostResolverAndPreservesExtensions()
+    {
+        await using var fixture = new Fixture();
+        string wheel = fixture.PersonalPath("FruityLink", "python", "extensions", "serum-support", "fruitylink_serum.whl");
+        string? resolvedHost = null;
+        fixture.PythonResolver = (host, runtime, package) =>
+        {
+            resolvedHost = host;
+            Assert.Null(runtime);
+            Assert.Null(package);
+            return new(fixture.PersonalPath("runtime"), fixture.PersonalPath("sdk.whl"))
+            {
+                ExtensionPackagePaths = [wheel],
+            };
+        };
+
+        await fixture.Claim(101);
+
+        Assert.Equal(fixture.PersonalPath("FruityLink"), resolvedHost);
+        Assert.Equal([wheel], fixture.PythonOptions!.ExtensionPackagePaths);
+    }
+
+    [Fact]
     public async Task ActionableErrorsPreserveGuidanceButRedactTokens()
     {
         var secret = new string('A', 64);
@@ -217,6 +240,9 @@ public sealed class AttachmentTests
         public Action? BeforePythonCall { get; set; }
         public Func<CancellationToken, Task>? DuringPython { get; set; }
         public bool Disconnected { get; set; }
+        public EmbeddedPythonOptions? PythonOptions { get; private set; }
+        public Func<string, string?, string?, EmbeddedPythonOptions>? PythonResolver { get; set; }
+        public string PersonalPath(params string[] parts) => Path.Combine([Personal.Root, .. parts]);
         private readonly string executable;
 
         public Fixture()
@@ -227,8 +253,13 @@ public sealed class AttachmentTests
             Control = (ControlProxy)control;
             Control.Project = new("Personal", Personal.Project("personal.flp"), false);
             Controller = new(control, Endpoint.InstanceId, executable, pid => Stamps.GetValueOrDefault(pid),
-                (paths, _) => new CommandDispatcher(control, paths, handler => new CallbackRuntime(handler,
-                    () => BeforePythonCall?.Invoke(), ct => DuringPython?.Invoke(ct) ?? Task.CompletedTask)));
+                (paths, options) =>
+                {
+                    PythonOptions = options;
+                    return new CommandDispatcher(control, paths, handler => new CallbackRuntime(handler,
+                        () => BeforePythonCall?.Invoke(), ct => DuringPython?.Invoke(ct) ?? Task.CompletedTask));
+                }, (host, runtime, package) => PythonResolver?.Invoke(host, runtime, package) ??
+                    EmbeddedPythonRuntimeLocator.Resolve(host, runtime, package));
         }
 
         public ManagedSession Session() => new(new(executable, null, Workspace.Root), this, this, this);
