@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Reflection;
 using FlMcp.Plugin;
 using FlMcp.Protocol;
@@ -64,6 +65,46 @@ public sealed class DispatcherTests
         var dispatcher = new CommandDispatcher(fl, new WorkspacePaths(files.Root));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => dispatcher.DispatchAsync("add_clip", Messages.Element(new ClipArgs(1, track, 0, 96)), CancellationToken.None));
         Assert.Empty(((RecordingFl)fl).Calls);
+    }
+
+    [Fact]
+    public async Task SongExtentIsTheLaterOfTheLastClipEndAndTheLastMarker()
+    {
+        using var files = new TestFiles();
+        var fl = DispatchProxy.Create<AttachmentTests.ITestControl, SongFl>();
+        var dispatcher = new CommandDispatcher(fl, new WorkspacePaths(files.Root));
+
+        var extent = (await dispatcher.DispatchAsync("song", Messages.Element(new { }), CancellationToken.None)).Deserialize<SongExtent>(Messages.Json)!;
+
+        Assert.Equal(41472, extent.LastClipEndTick);
+        Assert.Equal(43008, extent.LastMarkerTick);
+        Assert.Equal(43008, extent.EndTick);
+        Assert.Equal(100, extent.Tempo);
+        Assert.Equal(96, extent.Ppq);
+        Assert.Equal(268.8, extent.Seconds, 6);
+        Assert.Equal(2, ((SongFl)fl).ClipPages);
+    }
+
+    [Theory]
+    [InlineData("(no markers)", 0)]
+    [InlineData("2 markers:\nIntro @ tick 0 (bar 1)\nEnd @ tick 43008 (bar 113)", 43008)]
+    [InlineData("3 markers:\nEnd @ tick 43008 (bar 113)\n(marker) @ tick 384 (bar 2)\nDrop @ tick 9216 (bar 25)", 43008)]
+    public void LastMarkerTickReadsTheNativeListing(string text, int expected) =>
+        Assert.Equal(expected, CommandDispatcher.LastMarkerTick(text));
+
+    public class SongFl : DispatchProxy
+    {
+        public int ClipPages { get; private set; }
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method!.Name switch
+        {
+            "GetTempoAsync" => Task.FromResult(100.0),
+            "GetPpqAsync" => Task.FromResult(96),
+            "ListMarkersAsync" => Task.FromResult("2 markers:\nIntro @ tick 0 (bar 1)\nEnd @ tick 43008 (bar 113)"),
+            "QueryClipsAsync" => Task.FromResult(++ClipPages == 1
+                ? new FlQueryPage<FlClipInfo>([new(0, 1, 0, 3840, "pattern", 1, false)], 1, 2)
+                : new FlQueryPage<FlClipInfo>([new(1, 2, 3840, 37632, "pattern", 2, true)], null, 2)),
+            _ => throw new InvalidOperationException("Unexpected native call: " + method.Name)
+        };
     }
 
     [Fact]

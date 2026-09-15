@@ -50,6 +50,26 @@ internal sealed class TestFiles : IDisposable
         writer.Write(123);
     }
 
+    /// <summary>A silent 1 kHz mono 16-bit WAV (2000 bytes per second) of the given length.</summary>
+    public static void WriteWave(string path, double seconds)
+    {
+        var data = (int)Math.Round(seconds * 2000);
+        using var writer = new BinaryWriter(File.Create(path), Encoding.ASCII);
+        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+        writer.Write(36 + data);
+        writer.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write((short)1);
+        writer.Write(1000);
+        writer.Write(2000);
+        writer.Write((short)2);
+        writer.Write((short)16);
+        writer.Write(Encoding.ASCII.GetBytes("data"));
+        writer.Write(data);
+        writer.Write(new byte[data]);
+    }
+
     public void Dispose()
     {
         var root = Path.GetFullPath(Root);

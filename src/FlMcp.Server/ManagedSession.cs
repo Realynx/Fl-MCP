@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FlMcp.Protocol;
@@ -27,6 +28,14 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
     {
         ValidateTimeout(timeoutSeconds, 300);
         await gate.WaitAsync(ct).ConfigureAwait(false);
+        try { return await LaunchCoreAsync(projectPath, timeoutSeconds, ct, sourceProjectPath, background).ConfigureAwait(false); }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>The launch itself; the caller holds the gate (fl_section_measure reopens a rendered snapshot under one gate).</summary>
+    private async Task<SessionStatus> LaunchCoreAsync(string projectPath, int timeoutSeconds, CancellationToken ct,
+        string? sourceProjectPath, bool background)
+    {
         var launched = false;
         try
         {
@@ -62,7 +71,13 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             }
             launched = true;
             var status = await AwaitReadyAsync(dialogs, deadline.Token, ct).ConfigureAwait(false);
-            launchWarnings = dialogs.Warnings;
+            status = await AwaitSettledAsync(status, deadline.Token, ct).ConfigureAwait(false);
+            var warnings = dialogs.Warnings.ToList();
+            if (status.Settle is { Stable: false } settle)
+                warnings.Add(new SessionWarning("ProjectUnsettled",
+                    $"Tempo, PPQ or title were still changing {settle.Milliseconds} ms after readiness; the values here are the last observed. Read fl_status again before relying on tempo {status.Tempo}.",
+                    dialogs.OriginalProject, $"first tempo {settle.FirstTempo}, polls {settle.Polls}"));
+            launchWarnings = warnings;
             return status with { Warnings = launchWarnings };
         }
         catch
@@ -70,7 +85,6 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             if (launched) StopAuthoring();
             throw;
         }
-        finally { gate.Release(); }
     }
 
     public async Task<JsonElement> CallAsync(string operation, object args, CancellationToken ct)
@@ -96,51 +110,6 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         {
             var path = await SaveCoreAsync(projectPath, ct).ConfigureAwait(false);
             return new { path, bytes = Artifacts.VerifyProject(path), warnings = launchWarnings };
-        }
-        finally { gate.Release(); }
-    }
-
-    public async Task<object> RenderAsync(string outputPath, int timeoutSeconds, CancellationToken ct, RenderRange? range = null)
-    {
-        ValidateTimeout(timeoutSeconds, 3600);
-        range?.Validate();
-        await gate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            RequireOwnedLifecycle("render");
-            var output = paths.NewFile(outputPath, ".wav");
-            var snapshotDirectory = Path.Combine("snapshots", Guid.NewGuid().ToString("N"));
-            var stem = Path.GetFileNameWithoutExtension(output);
-            string? fullProject = null;
-            JsonElement? isolation = null;
-            if (range is not null)
-            {
-                // Preserve the untrimmed project first: isolating the range edits the live disposable project.
-                fullProject = await SaveCoreAsync(Path.Combine(snapshotDirectory, stem + "-full.flp"), ct).ConfigureAwait(false);
-                isolation = await IsolateRangeAsync(range, fullProject, ct).ConfigureAwait(false);
-            }
-            var snapshot = await SaveCoreAsync(Path.Combine(snapshotDirectory, stem + ".flp"), ct).ConfigureAwait(false);
-            var dialogs = new OwnedDialogMonitor(paths, snapshot, "Render");
-            var renderInBackground = ownedBackground;
-            // The owned editor is disposable; snapshot validity is checked before its process is stopped.
-            StopAuthoring();
-            if (!renderInBackground && processes.HasRunningStudio()) throw new InvalidOperationException($"Another FL process is running. Snapshot preserved at {snapshot}; close it before retrying.");
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-            using var render = processes.Start(LaunchCommands.Render(settings.Executable!, snapshot, Path.GetDirectoryName(output)!),
-                renderInBackground, deadline.Token);
-            try
-            {
-                await AwaitRenderAsync(render, dialogs, deadline.Token).ConfigureAwait(false);
-                if (render.ExitCode != 0) throw new IOException($"FL render exited with code {render.ExitCode}. Snapshot: {snapshot}");
-                return new { path = output, bytes = Artifacts.VerifyWave(output), project = snapshot, fullProject, range = isolation,
-                    sessionClosed = true, warnings = launchWarnings.Concat(dialogs.Warnings).ToArray() };
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
-            {
-                throw new IOException($"Render failed. Snapshot preserved at {snapshot}. {ex.Message}", ex);
-            }
-            finally { render.Terminate(); }
         }
         finally { gate.Release(); }
     }
@@ -183,6 +152,40 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             throw ReadinessTimeout(dialogs);
         }
     }
+
+    /// <summary>FL answers status with the copied project's path before it has applied that project's tempo (live
+    /// 2026-09-14: a 100 BPM snapshot reported the template's 140 for a few seconds). Keep polling until tempo, PPQ
+    /// and title stay unchanged for the settle window; give up after the settle timeout or the launch deadline.</summary>
+    private async Task<SessionStatus> AwaitSettledAsync(SessionStatus first, CancellationToken deadline, CancellationToken callerCancellation)
+    {
+        var started = Stopwatch.GetTimestamp();
+        var stableSince = started;
+        var last = first;
+        var polls = 0;
+        ProjectSettle Settle(bool stable) => new(stable, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds, polls, first.Tempo);
+        try
+        {
+            while (true)
+            {
+                if (Stopwatch.GetElapsedTime(stableSince) >= settings.ProjectSettleWindow) return last with { Settle = Settle(true) };
+                if (Stopwatch.GetElapsedTime(started) >= settings.ProjectSettleTimeout) return last with { Settle = Settle(false) };
+                await Task.Delay(settings.ProjectSettlePollInterval, deadline).ConfigureAwait(false);
+                var status = await TryStatusAsync(deadline).ConfigureAwait(false);
+                polls++;
+                if (status is not { Available: true } || !HasExpectedProject(status)) continue;
+                if (SameProjectValues(status, last)) continue;
+                last = status;
+                stableSince = Stopwatch.GetTimestamp();
+            }
+        }
+        catch (OperationCanceledException) when (!callerCancellation.IsCancellationRequested)
+        {
+            return last with { Settle = Settle(false) }; // the launch deadline bounds the wait; FL is ready regardless
+        }
+    }
+
+    private static bool SameProjectValues(SessionStatus a, SessionStatus b) =>
+        a.Tempo.Equals(b.Tempo) && a.Ppq == b.Ppq && a.ProjectTitle == b.ProjectTitle && a.ProjectPath == b.ProjectPath;
 
     private static TimeoutException ReadinessTimeout(OwnedDialogMonitor dialogs) => new(
         $"FL MCP was not ready before the deadline. Install FruityLink and enable FL MCP once in its Plugins menu; check the host log for build support. Original project: {dialogs.OriginalProject}");
@@ -234,13 +237,15 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
         return path;
     }
 
-    private async Task RequireProjectIdentityAsync(CancellationToken ct)
+    /// <summary>Confirms the connected FL still serves the expected project and returns its status (tempo, PPQ).</summary>
+    private async Task<SessionStatus> RequireProjectIdentityAsync(CancellationToken ct)
     {
         var status = await TryStatusAsync(ct).ConfigureAwait(false);
         if (status is not { Available: true } || !HasExpectedProject(status))
             throw new InvalidOperationException(ownership == SessionOwnership.Attached
                 ? "The attached project changed or FL is unavailable. Call fl_attach again before editing. No edit or save was attempted."
                 : "FL no longer reports the expected managed project. No edit or save was attempted.");
+        return status;
     }
 
     private bool HasExpectedProject(SessionStatus status)

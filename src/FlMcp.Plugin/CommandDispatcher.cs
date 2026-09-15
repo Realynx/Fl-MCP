@@ -26,6 +26,7 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         RegisterAuthoring();
         RegisterMixing();
         RegisterRead("markers", async ct => await InvokeAsync<string>("list_markers", new { }, ct).ConfigureAwait(false));
+        RegisterRead("song", SongAsync);
         Register<IndexArgs>("delete_marker", async (a, ct) =>
         {
             Arguments.Range(a.Index, 0, 9999, "index");
@@ -73,6 +74,38 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
             await InvokeAsync<double>("get_tempo", new { }, ct).ConfigureAwait(false), await InvokeAsync<int>("get_ppq", new { }, ct).ConfigureAwait(false))
             { ProjectPath = project?.Path, ProjectTitle = project?.Title, Untitled = project?.Untitled };
         return WithDisplayTitle(status);
+    }
+
+    /// <summary>The extent FL's exporter will render: the later of the last clip end and the last marker. The
+    /// companion compares a finished WAV against it to catch a renderer that died part-way with exit code 0.</summary>
+    private async Task<object?> SongAsync(CancellationToken ct)
+    {
+        var tempo = await InvokeAsync<double>("get_tempo", new { }, ct).ConfigureAwait(false);
+        var ppq = await InvokeAsync<int>("get_ppq", new { }, ct).ConfigureAwait(false);
+        var lastClipEnd = 0;
+        if (structuredQueries)
+        {
+            int? offset = 0;
+            while (offset is not null)
+            {
+                var page = await InvokeAsync<FlQueryPage<FlClipInfo>>("query_clips", new { track = -1, offset = offset.Value }, ct).ConfigureAwait(false);
+                foreach (var clip in page.Items) lastClipEnd = Math.Max(lastClipEnd, clip.StartTick + clip.LengthTick);
+                offset = page.NextOffset is int next && next > offset ? next : null;
+            }
+        }
+        var lastMarker = LastMarkerTick(await InvokeAsync<string>("list_markers", new { }, ct).ConfigureAwait(false));
+        var end = Math.Max(lastClipEnd, lastMarker);
+        var seconds = tempo > 0 && ppq > 0 ? end / (double)ppq * 60 / tempo : 0;
+        return new SongExtent(end, lastClipEnd, lastMarker, tempo, ppq, seconds);
+    }
+
+    /// <summary>Largest tick in the native marker listing ("Name @ tick 41472 (bar 109)" lines); 0 when there are none.</summary>
+    public static int LastMarkerTick(string markers)
+    {
+        var last = 0;
+        foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(markers ?? "", @"@ tick (\d+)"))
+            if (int.TryParse(match.Groups[1].Value, out var tick)) last = Math.Max(last, tick);
+        return last;
     }
 
     private const string UntitledLine = "Title: (untitled)\n";

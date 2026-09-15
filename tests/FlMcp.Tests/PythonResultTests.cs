@@ -68,6 +68,18 @@ public sealed class PythonResultTests
         Assert.Equal(2, Directory.GetFiles(Path.Combine(files.Root, PythonResults.ResultsDirectory)).Length);
     }
 
+    [Fact]
+    public void ToolResultsWithoutAnOkFieldCanDeclareTheirOwnFlag()
+    {
+        using var files = new TestFiles();
+        var response = Messages.Element(new { method = "live", measurements = new string('m', 10_000) });
+        var envelope = PythonResults.Bound(response, PythonResults.MinimumLimitBytes, new WorkspacePaths(files.Root), Stamp, ok: true);
+        Assert.True(envelope.GetProperty("oversized").GetBoolean());
+        Assert.True(envelope.GetProperty("ok").GetBoolean());
+        Assert.Contains("JSON result was saved", envelope.GetProperty("note").GetString());
+        Assert.False(PythonResults.Bound(response, PythonResults.MinimumLimitBytes, new WorkspacePaths(files.Root), Stamp).GetProperty("ok").GetBoolean());
+    }
+
     [Theory]
     [InlineData(null, PythonResults.DefaultLimitBytes)]
     [InlineData("", PythonResults.DefaultLimitBytes)]

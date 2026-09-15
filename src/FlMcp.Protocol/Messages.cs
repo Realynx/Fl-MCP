@@ -15,8 +15,16 @@ public sealed record SessionStatus(bool Available, int ProcessId, string Project
     public string? Ownership { get; init; }
     public bool RequiresReattach { get; init; }
     public IReadOnlyList<SessionWarning> Warnings { get; init; } = [];
+    /// <summary>Set only by a managed launch: how tempo, PPQ and title behaved after the bridge first reported the project.</summary>
+    public ProjectSettle? Settle { get; init; }
 }
 public sealed record SessionWarning(string Code, string Message, string OriginalProject, string Diagnostic);
+/// <summary>FL can report the copied project path before it has applied that project's tempo, so a launch keeps
+/// polling until tempo, PPQ and title stay unchanged for a window. Stable=false means the bounded wait ran out.</summary>
+public sealed record ProjectSettle(bool Stable, int Milliseconds, int Polls, double FirstTempo);
+/// <summary>The song as FL's exporter sees it: a render runs from bar 1 to the later of the last clip end and the
+/// last time marker. Seconds assumes the current tempo throughout (tempo automation is not followed).</summary>
+public sealed record SongExtent(int EndTick, int LastClipEndTick, int LastMarkerTick, double Tempo, int Ppq, double Seconds);
 public sealed record Note(int Channel, int Key, int StartTick, int LengthTick, int Velocity);
 public sealed record TempoArgs(double Bpm);
 public sealed record NameArgs(string Name);

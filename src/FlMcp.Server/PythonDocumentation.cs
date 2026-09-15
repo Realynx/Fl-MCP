@@ -15,8 +15,10 @@ public static class PythonDocumentation
         start a disposable project with fl_project_start. Then call fl_python_api to discover this
         SDK build's operations. The global fl is a Studio with helpers: fl.project, fl.transport,
         fl.channels, fl.patterns (fl.patterns[n].notes), fl.clips / fl.playlist, fl.mixer
-        (fl.mixer[t].effects[s].parameters), fl.automation, fl.plugins, fl.analysis, and fl.ops for
-        every generated operation. Optional Serum support imports as fruitylink_serum (see below).
+        (fl.mixer[t].effects[s].parameters), fl.automation, fl.plugins, fl.analysis (offline WAV
+        analysis and describe/compare), fl.samples (a sampler channel's file), fl.audio (live
+        per-insert capture and the section policy), and fl.ops for every generated operation.
+        Optional Serum support imports as fruitylink_serum (see below).
 
         Naming: Python arguments are keyword-only snake_case even though the catalog's wire names are
         camelCase: fl.ops.query_plugin_parameters(channel_or_track=4, slot=-1, offset=199, limit=1).
@@ -107,6 +109,29 @@ public static class PythonDocumentation
         Mixer pan: measured readbacks show 0 at centre and 6400 hard right for mixer tracks, while
         channel-rack pan uses 0..12800 with 6400 centre. Confirm the current SDK docstring for
         set_mixer_pan before writing, and verify stereo placement by rendering, not by readback.
+        Volume scales and dB: mixer track volume is raw 0..16000 with 12800 (fader 0.8, every
+        insert's default) = 0 dB and 16000 = +5.6 dB; channel-rack volume is raw 0..12800 with
+        10240 = 0 dB (FL's default 10000 is about -0.6 dB); send levels are 0..1 with 0.8 = 0 dB.
+        The fader law is not linear in dB; the SDK models dB = 20 * 2.889 * log10(position / 0.8)
+        (mixer 6400 is about -17 dB, 3200 about -35 dB; treat values below about -20 dB as +-3 dB
+        estimates). Write dB, not raw guesses: fl.mixer[t].set_volume(db=-6.0), fl.mixer[t].volume_db,
+        fl.channels[i].set_volume(db=-3.0), fl.mixer[t].send_to(dest, db=-6.0), or convert with
+        fruitylink.levels.mixer_volume_from_db / mixer_volume_to_db / channel_volume_from_db /
+        channel_volume_to_db / send_level_from_db.
+
+        Hearing without a full render: fl.analysis.describe(path, bpm=..., ppq=..., detail="normal")
+        returns an AudioDescription whose .text (about 20 lines: level, envelope sketch, onsets as
+        bar:beat, decay, silence, spectral segments with band levels, tonality, stereo width, loop
+        hints, tags) is what to read; .data holds the numbers. fl.analysis.compare(a, b) reports b
+        minus a; fl.analysis.describe_samples(paths) tabulates many candidates with a content cache;
+        fl.samples.describe(channel) describes a sampler channel's file when this session loaded it
+        (FL exposes no sampler-file query: pass path= or fl.samples.register(channel, path) otherwise).
+        fl.audio.capture(inserts, start_bar, end_bar, tail_beats=0) records the inserts' post-FX
+        output over the bars with FL's disk recording (transport stopped; real time) and returns
+        per-insert WAV paths and measurements; fl.audio.measure_section(start_bar, end_bar) applies
+        the live-vs-render policy and raises RenderRequired instead of rendering, because Python
+        never closes the session. The MCP tools fl_audio_describe, fl_audio_capture and
+        fl_section_measure wrap these, and fl_section_measure owns the render route.
 
         Attached FL sessions are user-owned: detach/client exit never closes FL, and close/render
         are refused. Snapshot saves preserve playback, song mode and active project filename.

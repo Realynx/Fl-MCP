@@ -11,7 +11,7 @@ public sealed class SessionTests
     [Fact]
     public async Task RefusesExistingStudioWithoutStartingOrStoppingIt()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.ExistingStudio = true;
         await using var session = fixture.Session();
         await Assert.ThrowsAsync<InvalidOperationException>(() => session.LaunchAsync("fresh.flp", 1, CancellationToken.None));
@@ -21,7 +21,7 @@ public sealed class SessionTests
     [Fact]
     public async Task BackgroundSessionCanLaunchBesideOtherStudioProcesses()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.ExistingStudio = true;
         await using var session = fixture.Session();
         await session.LaunchAsync("background.flp", 1, CancellationToken.None, background: true);
@@ -34,7 +34,7 @@ public sealed class SessionTests
     [Fact]
     public async Task BackgroundSessionKeepsRenderOnPrivateDesktop()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("background.flp", 1, CancellationToken.None, background: true);
         fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("background.wav"));
@@ -48,7 +48,7 @@ public sealed class SessionTests
     [Fact]
     public async Task BackgroundStartupGateUsesProjectDeadline()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.BlockStart = true;
         await using var session = fixture.Session();
 
@@ -61,7 +61,7 @@ public sealed class SessionTests
     [Fact]
     public async Task SecondLaunchDoesNotStopTheAlreadyManagedSession()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         await Assert.ThrowsAsync<InvalidOperationException>(() => session.LaunchAsync("other.flp", 1, CancellationToken.None));
@@ -73,7 +73,7 @@ public sealed class SessionTests
     [Fact]
     public async Task ReadinessTimeoutStopsOnlyOwnedProcess()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Bridge.Available = false;
         await using var session = fixture.Session();
         await Assert.ThrowsAsync<TimeoutException>(() => session.LaunchAsync("fresh.flp", 1, CancellationToken.None));
@@ -85,7 +85,7 @@ public sealed class SessionTests
     [Fact]
     public async Task SaveFailurePreservesEditingProcessAndDoesNotRender()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Bridge.ValidSave = false;
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
@@ -96,7 +96,7 @@ public sealed class SessionTests
     [Fact]
     public async Task RenderSnapshotsBeforeStoppingEditorAndUsesDocumentedArguments()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Processes.OnRenderExit = info => TestFiles.WriteWave(fixture.Files.PathFor("finished mix.wav"));
@@ -116,7 +116,7 @@ public sealed class SessionTests
     [Fact]
     public async Task CancelledRenderTerminatesItsOwnedRendererAndPreservesSnapshot()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.HangRender = true;
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
@@ -129,7 +129,7 @@ public sealed class SessionTests
     [Fact]
     public async Task LaunchUsesPrivateTokenAndTemplateCopy()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("new project.flp", 1, CancellationToken.None);
         var launch = Assert.Single(fixture.Processes.Started).Info;
@@ -145,7 +145,7 @@ public sealed class SessionTests
     [Fact]
     public async Task ConcurrentReaderDoesNotBlockSharedTemplateValidationAndCopy()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         using var concurrentReader = new FileStream(fixture.Settings.Template!, FileMode.Open, FileAccess.Read,
             FileShare.Read);
         await using var session = fixture.Session();
@@ -156,27 +156,10 @@ public sealed class SessionTests
         Assert.Equal(File.ReadAllBytes(fixture.Settings.Template!), File.ReadAllBytes(copied));
     }
 
-    private sealed class Fixture : IDisposable
-    {
-        public TestFiles Files { get; } = new();
-        public FakeProcesses Processes { get; } = new();
-        public FakeBridge Bridge { get; } = new();
-        public ServerSettings Settings { get; }
-        public Fixture()
-        {
-            var executable = Files.PathFor("FL64.exe");
-            File.WriteAllText(executable, "test-only placeholder; never executed");
-            Settings = new(executable, Files.Project(), Files.Root);
-            Processes.OnStart = info => Bridge.Project = info.ArgumentList[0];
-        }
-        public ManagedSession Session() => new(Settings, Processes, Bridge);
-        public void Dispose() => Files.Dispose();
-    }
-
     [Fact]
     public async Task WrongProjectCannotSatisfyReadiness()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.OnStart = _ => fixture.Bridge.Project = fixture.Files.PathFor("wrong.flp");
         await using var session = fixture.Session();
         await Assert.ThrowsAsync<TimeoutException>(() => session.LaunchAsync("fresh.flp", 1, CancellationToken.None));
@@ -186,7 +169,7 @@ public sealed class SessionTests
     [Fact]
     public async Task ChangedProjectRejectsMutationAndSave()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.Project = fixture.Files.PathFor("personal.flp");
@@ -199,7 +182,7 @@ public sealed class SessionTests
     [Fact]
     public async Task CancelledRenderCanResumePreservedSnapshotAndRenderAgain()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         fixture.Processes.HangRender = true;
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
@@ -215,7 +198,7 @@ public sealed class SessionTests
     [Fact]
     public async Task CloseSavesBeforeEndingSession()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         await session.CloseAsync("finished.flp", CancellationToken.None);
@@ -226,7 +209,7 @@ public sealed class SessionTests
     [Fact]
     public async Task EmbeddedExecutionRoutesOneBridgeRequestAndBlocksConcurrentEdits()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -254,7 +237,7 @@ public sealed class SessionTests
     [Fact]
     public async Task OversizedEmbeddedResponseIsSavedUnderWorkspaceAndSummarized()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = new ManagedSession(fixture.Settings with { PythonResponseLimitBytes = PythonResults.MinimumLimitBytes }, fixture.Processes, fixture.Bridge);
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(new { ok = true, result = new string('r', 20_000), stdout = "kept\n", stderr = "", stdoutTruncated = false, stderrTruncated = false }));
@@ -278,7 +261,7 @@ public sealed class SessionTests
     [Fact]
     public async Task TypedProjectIdentityOverridesMisleadingLegacyText()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.StructuredProject = fixture.Files.PathFor("different.flp");
@@ -289,7 +272,7 @@ public sealed class SessionTests
     [Fact]
     public async Task CancelledEmbeddedInvocationMustDrainBeforeCloseCanStopStudio()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -321,7 +304,7 @@ public sealed class SessionTests
     [Fact]
     public async Task LostEmbeddedAcknowledgementPreventsDisposeFromKillingFlUntilStatusConfirmsIdle()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.OnPython = (_, _) => throw new BridgeCompletionUnknownException(new EndOfStreamException());
@@ -336,7 +319,7 @@ public sealed class SessionTests
     [Fact]
     public async Task RenderRangePreservesTheFullProjectThenIsolatesBarsBeforeTheRenderSnapshot()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         PythonExecute? request = null;
@@ -351,7 +334,7 @@ public sealed class SessionTests
 
         Assert.Contains("from fruitylink.audition import isolate_bars", request!.Code);
         Assert.Contains("isolate_bars(fl, 49, 64, cut_clips=False)", request.Code);
-        Assert.Equal(new[] { "save", "python_execute", "save" }, fixture.Bridge.Calls.Where(call => call != "status"));
+        Assert.Equal(new[] { "save", "python_execute", "save", "song" }, fixture.Bridge.Calls.Where(call => call != "status"));
         var fullProject = result.GetProperty("fullProject").GetString()!;
         Assert.EndsWith("section-full.flp", fullProject);
         Assert.True(File.Exists(fullProject));
@@ -365,7 +348,7 @@ public sealed class SessionTests
     [Fact]
     public async Task FailedRangeIsolationKeepsTheEditorOpenAndNeverStartsTheRenderer()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(
@@ -386,7 +369,7 @@ public sealed class SessionTests
     [Fact]
     public async Task RenderWithoutRangeDoesNotTouchPythonOrSaveAFullSnapshot()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.OnPython = (_, _) => throw new InvalidOperationException("no Python expected");
@@ -394,7 +377,7 @@ public sealed class SessionTests
 
         var result = Messages.Element(await session.RenderAsync("plain.wav", 1, CancellationToken.None));
 
-        Assert.Equal(new[] { "save" }, fixture.Bridge.Calls.Where(call => call != "status"));
+        Assert.Equal(new[] { "save", "song" }, fixture.Bridge.Calls.Where(call => call != "status"));
         Assert.Equal(JsonValueKind.Null, result.GetProperty("fullProject").ValueKind);
         Assert.Equal(JsonValueKind.Null, result.GetProperty("range").ValueKind);
     }
@@ -434,7 +417,7 @@ public sealed class SessionTests
     [Fact]
     public async Task RenderRangeWithTailAsksTheSdkForAnEndMarkerPastTheSpan()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         PythonExecute? request = null;
@@ -452,9 +435,168 @@ public sealed class SessionTests
     }
 
     [Fact]
+    public async Task LaunchReportsTheSettledTempoRatherThanTheTemplateTempo()
+    {
+        using var fixture = new SessionFixture();
+        foreach (var tempo in new double[] { 140, 140, 100 }) fixture.Bridge.TempoSequence.Enqueue(tempo);
+        await using var session = fixture.Session();
+
+        var status = await session.LaunchAsync("resumed.flp", 5, CancellationToken.None);
+
+        Assert.Equal(100, status.Tempo);
+        Assert.NotNull(status.Settle);
+        Assert.True(status.Settle!.Stable);
+        Assert.Equal(140, status.Settle.FirstTempo);
+        Assert.True(status.Settle.Polls >= 2);
+        Assert.Empty(status.Warnings);
+        var later = await session.CallAsync("status", new { }, CancellationToken.None);
+        Assert.Equal(100, later.GetProperty("tempo").GetDouble());
+    }
+
+    [Fact]
+    public async Task UnsettledProjectReturnsTheLastValuesWithAWarningAfterTheBoundedWait()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = new ManagedSession(fixture.Settings with { ProjectSettleTimeout = TimeSpan.FromMilliseconds(60) }, fixture.Processes, fixture.Bridge);
+        for (var i = 0; i < 400; i++) fixture.Bridge.TempoSequence.Enqueue(i % 2 == 0 ? 140 : 100);
+
+        var status = await session.LaunchAsync("flapping.flp", 5, CancellationToken.None);
+
+        Assert.False(status.Settle!.Stable);
+        Assert.True(status.Settle.Milliseconds >= 60);
+        var warning = Assert.Single(status.Warnings);
+        Assert.Equal("ProjectUnsettled", warning.Code);
+        Assert.Contains("fl_status", warning.Message);
+    }
+
+    [Fact]
+    public async Task CrashedRenderMovesThePartialAsideAndRetriesOnceFromTheSameSnapshot()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("song.flp", 1, CancellationToken.None);
+        fixture.Bridge.Song = new SongExtent(41472, 41472, 0, 100, 96, 259.2);
+        fixture.Processes.ExitCodes.Enqueue(250477278);
+        fixture.Processes.ExitCodes.Enqueue(0);
+        var renders = 0;
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("song.wav"), ++renders == 1 ? 94.3 : 259.2);
+
+        var result = Messages.Element(await session.RenderAsync("song.wav", 5, CancellationToken.None));
+
+        Assert.Equal(3, fixture.Processes.Started.Count);
+        Assert.Equal(fixture.Processes.Started[1].Info.ArgumentList[3], fixture.Processes.Started[2].Info.ArgumentList[3]);
+        Assert.True(fixture.Processes.Started[1].Process.Terminated);
+        Assert.Equal(259.2, result.GetProperty("seconds").GetDouble(), 3);
+        Assert.Equal(259.2, result.GetProperty("expectedSeconds").GetDouble(), 3);
+        var attempts = result.GetProperty("attempts").EnumerateArray().ToArray();
+        Assert.Equal(2, attempts.Length);
+        Assert.Equal("failed", attempts[0].GetProperty("outcome").GetString());
+        Assert.Equal(250477278, attempts[0].GetProperty("exitCode").GetInt32());
+        Assert.Equal(94.3, attempts[0].GetProperty("seconds").GetDouble(), 3);
+        var partial = attempts[0].GetProperty("partialPath").GetString()!;
+        Assert.EndsWith("song.failed-attempt1.wav", partial);
+        Assert.True(File.Exists(partial));
+        Assert.Equal("ok", attempts[1].GetProperty("outcome").GetString());
+        Assert.Equal(259.2, Artifacts.ReadWave(result.GetProperty("path").GetString()!).Seconds, 3);
+        var codes = result.GetProperty("warnings").EnumerateArray().Select(warning => warning.GetProperty("code").GetString()).ToArray();
+        Assert.Equal(new[] { "RenderRetried" }, codes);
+    }
+
+    [Fact]
+    public async Task RenderFailingTwiceReportsBothAttemptsAndKeepsTheSnapshot()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("song.flp", 1, CancellationToken.None);
+        fixture.Bridge.Song = new SongExtent(41472, 41472, 0, 100, 96, 259.2);
+        fixture.Processes.ExitCodes.Enqueue(250477278);
+        fixture.Processes.ExitCodes.Enqueue(7);
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("song.wav"), 94.3);
+        File.WriteAllText(fixture.Files.PathFor($"plugin-host-{DateTime.Now:yyyyMMdd}.log"), "one\ntwo\nplugin X faulted\n");
+
+        var error = await Assert.ThrowsAsync<IOException>(() => session.RenderAsync("song.wav", 5, CancellationToken.None));
+
+        Assert.Contains("Render failed 2 times", error.Message);
+        Assert.Contains("Attempt 1: FL render exited with code 250477278", error.Message);
+        Assert.Contains("Attempt 2: FL render exited with code 7", error.Message);
+        Assert.Contains("WAV 94.3 s", error.Message);
+        Assert.Contains("project spans 259.2 s", error.Message);
+        Assert.Contains("song.failed-attempt1.wav", error.Message);
+        Assert.Contains("song.failed-attempt2.wav", error.Message);
+        Assert.Contains("plugin X faulted", error.Message);
+        var snapshot = fixture.Processes.Started[1].Info.ArgumentList[3];
+        Assert.Contains(snapshot, error.Message);
+        Assert.True(File.Exists(snapshot));
+        Assert.False(File.Exists(fixture.Files.PathFor("song.wav")));
+        Assert.True(File.Exists(fixture.Files.PathFor("song.failed-attempt1.wav")));
+        Assert.True(File.Exists(fixture.Files.PathFor("song.failed-attempt2.wav")));
+        Assert.Equal(3, fixture.Processes.Started.Count);
+    }
+
+    [Fact]
+    public async Task ShortRenderWithACleanExitIsRetriedAndAcceptedWhenTheLengthRepeats()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("song.flp", 1, CancellationToken.None);
+        fixture.Bridge.Song = new SongExtent(41472, 41472, 0, 100, 96, 259.2);
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("song.wav"), 200);
+
+        var result = Messages.Element(await session.RenderAsync("song.wav", 5, CancellationToken.None));
+
+        Assert.Equal(3, fixture.Processes.Started.Count);
+        var attempts = result.GetProperty("attempts").EnumerateArray().ToArray();
+        Assert.Equal("failed", attempts[0].GetProperty("outcome").GetString());
+        Assert.Contains("project spans 259.2 s", attempts[0].GetProperty("failure").GetString());
+        Assert.Equal("accepted-short", attempts[1].GetProperty("outcome").GetString());
+        Assert.Equal(200, result.GetProperty("seconds").GetDouble(), 3);
+        var codes = result.GetProperty("warnings").EnumerateArray().Select(warning => warning.GetProperty("code").GetString()).ToArray();
+        Assert.Equal(new[] { "RenderRetried", "RenderShorterThanExpected" }, codes);
+        Assert.True(File.Exists(fixture.Files.PathFor("song.failed-attempt1.wav")));
+    }
+
+    [Fact]
+    public async Task RenderWithoutASpanEstimateSucceedsOnTheFirstCleanExit()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("song.flp", 1, CancellationToken.None);
+        fixture.Processes.OnRenderExit = _ => TestFiles.WriteWave(fixture.Files.PathFor("song.wav"), 3);
+
+        var result = Messages.Element(await session.RenderAsync("song.wav", 5, CancellationToken.None));
+
+        Assert.Equal(2, fixture.Processes.Started.Count);
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("expectedSeconds").ValueKind);
+        var attempt = Assert.Single(result.GetProperty("attempts").EnumerateArray());
+        Assert.Equal("ok", attempt.GetProperty("outcome").GetString());
+        Assert.Equal(3, result.GetProperty("seconds").GetDouble(), 3);
+    }
+
+    [Fact]
+    public async Task TimedOutRenderIsNotRetriedAndItsPartialIsMovedAside()
+    {
+        using var fixture = new SessionFixture();
+        fixture.Processes.HangRender = true;
+        await using var session = fixture.Session();
+        await session.LaunchAsync("song.flp", 1, CancellationToken.None);
+        var onStart = fixture.Processes.OnStart;
+        fixture.Processes.OnStart = info =>
+        {
+            onStart?.Invoke(info);
+            if (info.ArgumentList[0] == "/R") TestFiles.WriteWave(fixture.Files.PathFor("song.wav"), 1); // the renderer's partial output
+        };
+
+        var error = await Assert.ThrowsAsync<IOException>(() => session.RenderAsync("song.wav", 1, CancellationToken.None));
+
+        Assert.Equal(2, fixture.Processes.Started.Count);
+        Assert.Contains("song.failed-attempt1.wav", error.Message);
+        Assert.False(File.Exists(fixture.Files.PathFor("song.wav")));
+    }
+
+    [Fact]
     public async Task ExitedUnconfirmedSessionDoesNotPreventFailedNewLaunchCleanup()
     {
-        using var fixture = new Fixture();
+        using var fixture = new SessionFixture();
         await using var session = fixture.Session();
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         fixture.Bridge.OnPython = (_, _) => throw new BridgeCompletionUnknownException(new EndOfStreamException());
@@ -463,70 +605,5 @@ public sealed class SessionTests
         fixture.Bridge.Available = false;
         await Assert.ThrowsAsync<TimeoutException>(() => session.LaunchAsync("new-generation.flp", 1, CancellationToken.None));
         Assert.True(fixture.Processes.Started[1].Process.Terminated);
-    }
-
-    private sealed class FakeBridge : IBridgeClient
-    {
-        public bool Available { get; set; } = true;
-        public bool ValidSave { get; set; } = true;
-        public string Project { get; set; } = "";
-        public string? StructuredProject { get; set; }
-        public List<string> Calls { get; } = [];
-        public Func<PythonExecute, CancellationToken, Task<JsonElement>>? OnPython { get; set; }
-        public Task<JsonElement> CallAsync(int processId, string token, string operation, object arguments, int timeoutSeconds, CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            Calls.Add(operation);
-            if (operation == "python_execute") return OnPython!((PythonExecute)arguments, ct);
-            if (operation == "python_call") return Task.FromResult(Messages.Element(new PythonReply(Messages.Element(new { apiVersion = 1, operations = Array.Empty<object>() }))));
-            if (operation == "save")
-            {
-                var path = ((PathArgs)arguments).Path;
-                if (ValidSave) TestFiles.WriteProject(path);
-                else File.WriteAllText(path, "this is not a valid project file");
-                return Task.FromResult(Messages.Element(new { path }));
-            }
-            return Task.FromResult(Messages.Element(new SessionStatus(Available, processId, "Title: fixture\nPath: " + Project + "\nSaved: yes", 120, 96) { ProjectPath = StructuredProject }));
-        }
-    }
-
-    private sealed class FakeProcesses : IProcessHost
-    {
-        public bool ExistingStudio { get; set; }
-        public bool HangRender { get; set; }
-        public bool BlockStart { get; set; }
-        public Action<ProcessStartInfo>? OnRenderExit { get; set; }
-        public Action<ProcessStartInfo>? OnStart { get; set; }
-        public List<(ProcessStartInfo Info, FakeProcess Process, bool Background)> Started { get; } = [];
-        public bool HasRunningStudio() => ExistingStudio;
-        public IManagedProcess Start(ProcessStartInfo info, bool background = false, CancellationToken ct = default)
-        {
-            if (BlockStart)
-            {
-                ct.WaitHandle.WaitOne();
-                ct.ThrowIfCancellationRequested();
-            }
-            OnStart?.Invoke(info);
-            var process = new FakeProcess(100 + Started.Count, async ct =>
-            {
-                if (HangRender) await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-                OnRenderExit?.Invoke(info);
-            });
-            Started.Add((info, process, background));
-            return process;
-        }
-    }
-
-    private sealed class FakeProcess(int id, Func<CancellationToken, Task> wait) : IManagedProcess
-    {
-        public int Id => id;
-        public bool Terminated { get; private set; }
-        public int StartupCompletions { get; private set; }
-        public bool HasExited => Terminated;
-        public int ExitCode => 0;
-        public Task WaitForExitAsync(CancellationToken ct) => wait(ct);
-        public void CompleteStartup() => StartupCompletions++;
-        public void Terminate() => Terminated = true;
-        public void Dispose() { }
     }
 }

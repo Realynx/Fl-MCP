@@ -322,9 +322,6 @@
       },
       "flmcp.protocol": {
         "type": "Project"
-      },
-      "fruitylink.core": {
-        "type": "Project"
       }
     }
   }

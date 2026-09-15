@@ -54,20 +54,16 @@ public sealed partial class ManagedSession
     {
         var code = "from fruitylink.audition import isolate_bars\n"
             + $"result = isolate_bars(fl, {range.PythonArguments()}).to_dict()\n";
-        JsonElement reply;
         try
         {
-            var request = new PythonExecute(code, RangeIsolationTimeoutSeconds, expectedProject ?? "");
-            reply = await CallCoreAsync("python_execute", request, RangeIsolationTimeoutSeconds, ct).ConfigureAwait(false);
+            return await RunSdkScriptAsync(code, RangeIsolationTimeoutSeconds, "Range isolation", ct).ConfigureAwait(false);
         }
-        catch (BridgeCompletionUnknownException) { embeddedCompletionUnknown = true; throw; }
-        if (reply.ValueKind == JsonValueKind.Object && reply.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True)
-            return reply.TryGetProperty("result", out var result) ? result.Clone() : default;
-        var error = reply.ValueKind == JsonValueKind.Object && reply.TryGetProperty("error", out var detail) && detail.ValueKind == JsonValueKind.String
-            ? detail.GetString() : "the embedded SDK returned no error text";
-        throw new InvalidOperationException(
-            $"Render range bars {range.StartBar}..{range.EndBar} could not be isolated: {error}. The editing session stays open; "
-            + $"the untrimmed project is preserved at {fullProject}. Playlist edits made before the failure are not rolled back, "
-            + "so resume from that snapshot or inspect the clips before continuing.");
+        catch (SdkScriptException failure)
+        {
+            throw new InvalidOperationException(
+                $"Render range bars {range.StartBar}..{range.EndBar} could not be isolated: {failure.Error}. The editing session stays open; "
+                + $"the untrimmed project is preserved at {fullProject}. Playlist edits made before the failure are not rolled back, "
+                + "so resume from that snapshot or inspect the clips before continuing.", failure);
+        }
     }
 }

@@ -32,8 +32,9 @@ public static class PythonResults
             ? Math.Max(parsed, MinimumLimitBytes)
             : DefaultLimitBytes;
 
-    /// <summary>Returns the response unchanged when it fits, otherwise saves it and returns the summary envelope.</summary>
-    public static JsonElement Bound(JsonElement response, int limitBytes, WorkspacePaths workspace, DateTimeOffset now)
+    /// <summary>Returns the response unchanged when it fits, otherwise saves it and returns the summary envelope.
+    /// <paramref name="ok"/> overrides the envelope's ok flag for tool results that carry no ok field of their own.</summary>
+    public static JsonElement Bound(JsonElement response, int limitBytes, WorkspacePaths workspace, DateTimeOffset now, bool? ok = null)
     {
         limitBytes = Math.Max(limitBytes, MinimumLimitBytes);
         if (Encoding.UTF8.GetByteCount(response.GetRawText()) <= limitBytes) return response;
@@ -44,7 +45,7 @@ public static class PythonResults
         var totalBytes = Encoding.UTF8.GetByteCount(text);
         var envelope = new Dictionary<string, object?>
         {
-            ["ok"] = response.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True,
+            ["ok"] = ok ?? (response.TryGetProperty("ok", out var okFlag) && okFlag.ValueKind == JsonValueKind.True),
             ["oversized"] = true,
             ["totalBytes"] = totalBytes,
             ["limitBytes"] = limitBytes,
@@ -52,8 +53,9 @@ public static class PythonResults
             ["head"] = Head(text, limitBytes / 4),
             ["tail"] = Tail(text, limitBytes / 8),
             ["note"] = $"The response is {totalBytes} bytes, over the {limitBytes}-byte {LimitVariable}. " +
-                       "The complete JSON response {ok,result,stdout,stderr,error?,traceback?} was saved to 'path'; " +
-                       "read it with a file tool, or return a smaller result and print less.",
+                       (ok is null ? "The complete JSON response {ok,result,stdout,stderr,error?,traceback?} was saved to 'path'; " +
+                                     "read it with a file tool, or return a smaller result and print less."
+                                   : "The complete JSON result was saved to 'path'; read it with a file tool."),
         };
         if (response.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String)
             envelope["error"] = Head(error.GetString()!, limitBytes / 16);

@@ -44,7 +44,7 @@ If the bridge breaks before execution completion is acknowledged, FL is left run
 
 Inspect FL's desktop for missing assets, plugin licensing, recovery, or export dialogs. Rendering uses FL's saved export settings and waits for process exit, with a default 600-second deadline and a maximum of 3600. A build that leaves its renderer open will time out even if a file appears stable.
 
-If rendering fails, use the preserved snapshot path reported by the error. After explicit client cancellation, use your last known saved recovery snapshot. Existing/partially written outputs are preserved: choose a new output filename when retrying.
+If rendering fails, use the preserved snapshot path reported by the error. A crashed or partial render (nonzero exit code, invalid WAV, or a WAV shorter than the project) is retried once automatically from that snapshot; the error after a second failure quotes both attempts and the plugin-host log tail, which names a plugin that took the renderer down. After explicit client cancellation, use your last known saved recovery snapshot. Partially written outputs are moved beside the output as `<name>.failed-attempt<n>.wav` and kept as evidence.
 
 If the WAV is silent or incomplete, inspect the arrangement and sound sources. Notes need playlist placement for the intended song arrangement, instruments need their assets/licenses, and routing or automation can silence a signal. WAV structure validation does not establish musical correctness.
 
@@ -53,5 +53,7 @@ Offline analysis does not capture live channel audio. Smaller ranges help when t
 ## Report a reproducible issue
 
 Include the exact FL Studio build, Windows version, installer/SDK/adapter versions, whether the session was attached or disposable, the failing tool and arguments, and the error text. Describe the last successful operation and whether FL displayed a dialog. Use a small disposable project when possible; avoid sharing credentials, private paths, or licensed assets unnecessarily.
+
+When an agent keeps its records or friction notes as Markdown, write multi-line files with the client's file-writing tool (the Write tool in Claude Code) rather than a long Bash heredoc. Claude Code's Bash tool fails to parse a quoted heredoc once it is a few dozen lines long, even though shorter ones work.
 
 Compare your case with [known verification limits](live-verification.md#remaining-limits), then open an [issue in FL MCP](https://github.com/Realynx/Fl-MCP/issues). SDK/native behavior may need to be tracked in the [FruityLink framework](https://github.com/Realynx/FL-Automation/issues).

@@ -25,7 +25,10 @@ public static class Artifacts
         return stream.Length;
     }
 
-    public static long VerifyWave(string path)
+    public static long VerifyWave(string path) => ReadWave(path).Bytes;
+
+    /// <summary>Validates the WAV envelope and reads its duration from the format and data chunks.</summary>
+    public static WaveInfo ReadWave(string path)
     {
         using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
         var header = new byte[12];
@@ -33,24 +36,43 @@ public static class Artifacts
         var format = Encoding.ASCII.GetString(header.AsSpan(0, 4));
         if (stream.Length <= 44 || format != "RIFF" || Encoding.ASCII.GetString(header.AsSpan(8, 4)) != "WAVE")
             throw new InvalidDataException("Render exited without a valid nonempty WAV file.");
-        VerifyWaveChunks(stream);
-        return stream.Length;
+        return ReadWaveChunks(stream);
     }
 
-    private static void VerifyWaveChunks(Stream stream)
+    private static WaveInfo ReadWaveChunks(Stream stream)
     {
         using var reader = new BinaryReader(stream, Encoding.ASCII, leaveOpen: true);
         var hasFormat = false;
         var hasAudio = false;
+        var byteRate = 0u;
+        var channels = 0;
+        var sampleRate = 0;
+        var dataBytes = 0L;
         while (stream.Position + 8 <= stream.Length)
         {
             var name = Encoding.ASCII.GetString(reader.ReadBytes(4));
             var size = reader.ReadUInt32();
             if (size > stream.Length - stream.Position) throw new InvalidDataException("Truncated WAV chunk.");
-            hasFormat |= name == "fmt " && size >= 16;
-            hasAudio |= name == "data" && size > 0;
-            stream.Seek(size + (size % 2), SeekOrigin.Current);
+            var next = stream.Position + size + (size % 2);
+            if (name == "fmt " && size >= 16)
+            {
+                hasFormat = true;
+                reader.ReadUInt16(); // format tag
+                channels = reader.ReadUInt16();
+                sampleRate = reader.ReadInt32();
+                byteRate = reader.ReadUInt32();
+            }
+            else if (name == "data" && size > 0)
+            {
+                hasAudio = true;
+                dataBytes = size;
+            }
+            stream.Seek(next, SeekOrigin.Begin);
         }
         if (!hasFormat || !hasAudio) throw new InvalidDataException("WAV needs format and nonempty audio chunks.");
+        return new WaveInfo(stream.Length, byteRate > 0 ? dataBytes / (double)byteRate : 0, sampleRate, channels);
     }
 }
+
+/// <summary>A validated WAV: file size plus the duration implied by its data chunk and byte rate.</summary>
+public sealed record WaveInfo(long Bytes, double Seconds, int SampleRate, int Channels);

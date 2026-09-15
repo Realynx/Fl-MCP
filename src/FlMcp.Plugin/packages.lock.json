@@ -4,21 +4,6 @@
     "net9.0-windows7.0": {
       "flmcp.protocol": {
         "type": "Project"
-      },
-      "fruitylink.core": {
-        "type": "Project"
-      },
-      "fruitylink.plugins.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "FruityLink.Core": "[0.2.0, )"
-        }
-      },
-      "fruitylink.scripting": {
-        "type": "Project",
-        "dependencies": {
-          "FruityLink.Core": "[0.2.0, )"
-        }
       }
     }
   }

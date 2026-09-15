@@ -8,6 +8,15 @@ public sealed record ServerSettings(string? Executable, string? Template, string
     public string? PythonPackagePath { get; init; }
     /// <summary>Inline budget for fl_execute_python responses in UTF-8 bytes; larger responses are saved under the workspace.</summary>
     public int PythonResponseLimitBytes { get; init; } = PythonResults.DefaultLimitBytes;
+    /// <summary>After readiness, a launch returns once tempo, PPQ and title have stayed unchanged for this long
+    /// (FL reports the template tempo until the loaded project is applied).</summary>
+    public TimeSpan ProjectSettleWindow { get; init; } = TimeSpan.FromSeconds(2);
+    /// <summary>Upper bound on the settle wait; afterwards the last observed values are returned with a warning.</summary>
+    public TimeSpan ProjectSettleTimeout { get; init; } = TimeSpan.FromSeconds(20);
+    public TimeSpan ProjectSettlePollInterval { get; init; } = TimeSpan.FromMilliseconds(250);
+    /// <summary>Where the FruityLink plugin host writes plugin-host-yyyyMMdd.log; its tail is quoted in render failures.</summary>
+    public string HostLogDirectory { get; init; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FruityLink", "logs");
     public static ServerSettings FromEnvironment() => new(
         Environment.GetEnvironmentVariable("FL_MCP_FL_EXE"),
         Environment.GetEnvironmentVariable("FL_MCP_TEMPLATE"),

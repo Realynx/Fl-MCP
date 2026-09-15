@@ -394,7 +394,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 ## 2026-09-14 — Parking Lot Moon
 
 ### Plugin state read/load fails with "FL event 254 is truncated" on every channel (FL build 26.1.3.5570)
-- Status: open, workaround found (blocks `fruitylink_serum.loading.load_preset`, `describe.describe_state`, `Channel.get_state`/`load_state` in the session that was opened from the build-4726 template copy; after `fl_project_close` -> v002 and `fl_project_start(v003, sourceProjectPath=v002)` the same calls succeed: `get_state` ok, `load_preset(fl, 5, "PD - Lush Chorus")` -> state record changed 96.9 %, `describe_state` returns the patch)
+- Status: fixed (live 2026-09-14: check 7 -- `fl.channels[1].get_state()` returned 17,640 bytes (head `0c00000001000000`) with no error, and a fresh build-4726 template session read 13,079 bytes off a new Serum 2 channel; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; root cause: FL 5570 writes event 0xAC as tag + u16 (tag 1) or tag + u32 (tag 0), `FlpPluginStateReader` now tries tagged then legacy framing and accepts only a walk that lands on the chunk end (44/44 FL-5570 FLPs under FlMcp\Projects parse), `ExtractStateAsync` retries once after a 250 ms settle and `TryRead*StateRecordAsync` tolerate `InvalidDataException` so a load is still applied when its evidence snapshot cannot be parsed)
 - Seen: 2026-09-14, Parking Lot Moon phase 1, managed interactive session on Parking-Lot-Moon-v001.flp (template saved by build 4726, live FL 5570)
 - Call: `loading.load_preset(fl, 1, "LD - Lush and Vintage")`; `fl.channels[1].get_state()`; same on GMS (ch 4) and 3x Osc (ch 7)
 - Expected / actual: LoadResult / state bytes; actual `RemoteError: operation_failed: FL event 254 is truncated.` from `FlpPluginStateReader.ReadPayload` on the temp project snapshot. `LoadChannelPluginStateAsync` takes the "before" snapshot *before* dispatching the load and `TryReadChannelStateRecordAsync` only catches InvalidOperationException/IOException, so an InvalidDataException aborts the load and nothing is applied. Parsing the same snapshot (`scratch/state-probe-v001.flp`, saved with `fl.project.save_copy`) with the reader's algorithm shows the desync: FL 5570 writes event 0xAC (172) with a 3-byte payload at offsets 48 and 182 (`ac 01 01 00 | c0 36 "FL Studio 26.1.3.5570.5570"` and `ac 00 01 00 | 00 ed 10 <ProjectTime>`), the reader assumes 4 bytes for ids 128..191, runs one byte ahead and eventually reads garbage (`fe ff ff 40` -> event 254, length 1,064,959 in a 135 KB file). Ember-Tides-v018-master.flp (same build) has the same bytes but happens to resync, which is why state reads worked there. The template v001 (build 4726) has no 0xAC event and parses cleanly.
@@ -402,7 +402,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: `Parking-Lot-Moon/scratch/state-probe-v001.flp`; parser transcript in this session; `sdk/src/FruityLink.FlStudio/FlpPluginStateReader.cs:114`, `FlInjectBridge.PluginState.cs:34,188`
 
 ### Sample channels report "hosts no generator plugin (automation/bus channel)" for get_state
-- Status: docs
+- Status: fixed (live 2026-09-14: check 8 -- channel 8 now reports "it is a built-in Sampler channel (or an audio clip / layer) ... replace_channel_sample", channel 21 "it is an automation clip (automates event 0x71008030)"; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `RequireGeneratorAsync` classifies a gen < 0 channel through the automation-target registry: "it is an automation clip (automates X) and hosts no plugin" or "it is a built-in Sampler channel (or an audio clip / layer) ... replace_channel_sample ..."; used by get_state and load_state)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.channels[8].get_state()` on a Sampler channel loaded with `fl.channels.add_sample`
 - Expected / actual: a message saying Sampler channels keep no wrapper state; actual "Channel 8 hosts no generator plugin (automation/bus channel)", which misclassifies a sample channel.
@@ -410,7 +410,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Template mixer has 16 inserts; naming insert 17 is refused
-- Status: caller
+- Status: fixed (live 2026-09-14: check 19 -- insert 25 refused with "Insert 25 does not exist yet ... ensure_inserts(25)", `ensure_inserts` added 1 and insert 25 took the name "Vox"; the fresh template variant read before 16 / capacity 500; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fl.mixer.insert_count` (native count - 2), `fl.mixer.capacity` (500), `fl.mixer.ensure_inserts(n)` grows the mixer through the existing `add_mixer_track` and returns how many were added; the bridge range error now names the insert count, the capacity and `ensure_inserts(17)`)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.mixer[17].name = "Vox"` on the default template (`get_mixer_track_count` = 18 including Master and Current)
 - Expected / actual: rename; actual `invalid_arguments: Mixer track must be 0..16 (Master and ordinary inserts); Current and dormant slots are unavailable`. The loop aborted mid-way but inserts 1..16 were renamed.
@@ -418,7 +418,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `inventory.query_index(text=...)` misses single-word queries that match preset names
-- Status: open
+- Status: fixed (live 2026-09-14: check 9 -- all six single-word queries returned hits; "cotton" -> ["LD - Analog Crispy Cotton", "PD - Analog Soft Cotton"], "soft" == "Soft" (5 hits, case-insensitive); deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; root cause not reproduced from the venv (the real presets.db returns 25 rows for "soft"), so the text filter now runs in Python: every query word must occur case-insensitively in name/location/description/comment/author/tags, SQL keeps the category/tag filters, `limit` applies after filtering; `test_inventory_words.py`)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `inventory.query_index(root, text="soft")`, `"Soft"`, `"cotton"`, `"analog"`, `"warm"`, `"tape"`, `"80s"` (root = Serum 2 Presets)
 - Expected / actual: at least "PD - Analog Soft Cotton" / "PD - Analog Butter" ("You want warm pads"); actual empty tuples, while `text="analog pad"`, `"dream"`, `"synthwave"`, `"nostalgic"`, `"retro"` return rows.
@@ -426,7 +426,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### No channel delete: the template's empty "Sampler" channel stays in the rack
-- Status: open
+- Status: wontfix (delete/clone/move are UI-only `TFruityLoopsMainForm.ChannelMenuPopup` commands with no engine call, and FL's own scripting API has none either; workaround: `Channel.retire(name=None)` / `fl.channels.retire(index)` mutes, routes to Master and renames "(unused) <old name>" (idempotent, returns the new name), api.md "Retire a channel")
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: catalog search for delete/remove channel; none exists (only `clear_pattern`, `delete_clip(s)`, `remove_mixer_effect`)
 - Expected / actual: a way to drop channel 0 after adding real channels; actual it stays, renamed "(unused template)" and routed to Master.
@@ -434,7 +434,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: fl_python_api catalog
 
 ### Drum-insert routing to a bus cannot be verified: no send/route readback
-- Status: open
+- Status: fixed (live 2026-09-14: check 18 -- `fl.mixer[8].sends()` read [(0 Master, 0.8), (6 Bass, 0), (15 Drum Bus, 0.8)], `disconnect(0)` removed the Master row with no dialog and no stall, `fl.mixer.routes()` 49; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; new structured op `query_mixer_sends(track)` (C# `IFlStructuredQuery.QueryMixerSendsAsync`, `FlMixerSendInfo(Source, Destination, DestinationName, Level, Active)`, only active sends, level = native/16000); Python `MixerTrack.sends()`, `send_level(destination)`, `fl.mixer.routes()`, `MixerSendInfo.level_db`; `set_mixer_send(..., active=True)` (FL route-active core 0/1) and `MixerTrack.disconnect(destination)`; a sidechain-flagged route is indistinguishable from a plain send)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.mixer[i].send_to(15, 1.0)` then `fl.mixer[i].send_to(0, 0.0)` for inserts 8..14 (kick..perc -> "Drum Bus")
 - Expected / actual: both accepted, but there is no `get_mixer_send` / route query, so whether the master route is actually disabled (or only its level zeroed) is unknown until a render.
@@ -442,7 +442,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: fl_python_api catalog (only `set_mixer_send`)
 
 ### `playlist.add_patterns` ignores `PatternClipSpec.length_tick`: clips take the pattern's own length
-- Status: open
+- Status: fixed (live 2026-09-14: check 25 -- both new clips read `length_tick` 3072 straight after `add_patterns`, `fixed == 0`, no resize call; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; C# root cause: `AddPatternClipsAsync` now pins an explicit `LengthTick` through `FLpl_SetClipSourceRange` + the +0x08 poke (shared `PinClipLengthAsync`) right after each insert, before the pattern refresh that re-derived the length; `length_tick <= 0` (new default 0) follows the pattern; safety net `fl.playlist.add_patterns(specs, enforce_lengths=True)` re-lists and resizes any clip whose length still differs and returns the count)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.playlist.add_patterns([PatternClipSpec(36, 9, 0, 3072), ...])` (75 clips)
 - Expected / actual: 8-bar clips; actual `fl.clips.list()` reports the pattern length instead (Tex Bed 3840 = 10 bars because its last hiss note ends at tick 3840; Pad Intro 3456 because legato pad notes overhang the bar by 8 ticks; humanised drum hits push kits to 9 bars), so consecutive clips on one track overlapped by 1-2 bars.
@@ -450,7 +450,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (clip 1 before/after)
 
 ### `fl.clips.resize` takes a sequence of `ClipResize`, not `(index, length)`
-- Status: docs
+- Status: fixed (live 2026-09-14: check 26 -- `resize(index, 1536)` then `resize([(index, 3072)])` read back (1536, 3072); deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fl.clips.resize(index, length_tick)`, `resize([(index, length_tick), ...])` or records; same forms for `move(index, start_tick, track)`; `delete(7)` and `set_muted(7, True)` accept a single index; mixed forms raise `TypeError` before any request; docstrings on `ClipResize`/`ClipMove`, api.md)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.clips.resize(1, 3072)`
 - Expected / actual: resize; actual `TypeError: Clips.resize() takes 2 positional arguments but 3 were given`; signature is `resize(resizes: Sequence[ClipResize])`. Same shape for `move`.
@@ -458,7 +458,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `parameters.page(limit=4240)` refused: page limit is 512
-- Status: docs
+- Status: fixed (live 2026-09-14: check 10 -- `all()` returned 4240 rows in one request and `page(limit=4240)` raised an IndexError naming the 512 host cap and `all()`/`list()`/`iter()`; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `Parameters.all(filter=None, unique=False)` pages automatically (alias of `list()`), `plugins.PAGE_LIMIT = 512`, `page(limit>512)` raises an `IndexError` naming the cap and `all()`)
 - Seen: 2026-09-14, Parking Lot Moon phase 1
 - Call: `fl.channels[1].parameters.page(offset=0, limit=4240)` to dump Serum 2's parameter names
 - Expected / actual: one page (docs only say "bounded reads"); actual `IndexError: Index must be an integer >= 1 and <= 512.`
@@ -466,7 +466,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Serum 2 through the wrapper: FX slots are only "FX Main Param 1..16", oscillator wavetables and sub shape are unnamed enums
-- Status: open (docs)
+- Status: fixed-unverified (live PARTIAL 2026-09-14: check 11 -- the describe output is right (Sub Shape index 199 display "Sine" -> `meaning.value` "sine"; A WT Pos frame 1 of `S2 Tables/Analog/DM - OSCAR.wav`; `fx` lists Delay then Reverb) but `explain_parameters` returns `meaning.values` keyed by floats and the embedded worker refuses to serialise it: `TypeError: JSON object keys must be strings.` from `fruitylink/values.py` line 42; fix in progress for stage i; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; partial: `fruitylink_serum.describe.explain_parameter(name, normalized, state=)`, `explain_parameters(fl, channel, filter=, state=)` and `fx_slot_names(state)` name Sub Shape values (0.25 -> roundrect), resolve A/B/C WT Pos to table + frame and list each rack's loaded units; the "FX Main Param n" proxy slots stay opaque because every preset stores `FXRack{n}/proxyParams = null`, documented in serum-support.md with the `SerumPatch.fx.*` -> `load_preset` route; the calibrations recorded here are in `data/parameter-scales.json`)
 - Seen: 2026-09-14, Parking Lot Moon phase 1 (preset loading blocked, so patches were authored by parameter)
 - Call: `set_plugin_param` on Serum 2 channels; parameter dump `scratch/serum2-params-ch1.json`
 - Expected / actual: a way to enable/choose an effect (chorus) or a wavetable frame by name; actual the effect rack exposes 16 anonymous "FX Main Param n" per bus and no effect-type/enable parameter, `A WT Pos` is a bare frame index, `Sub Shape` is an enum whose order had to be probed by writing values (0.25 -> "RoundRect"). Calibration (0..1 -> display): Filter 1 Freq 0.5=425 Hz, 0.6=937, 0.7=2064, 0.8=4549, 0.9=10025; Env Attack 0.3=78 ms, 0.4=328 ms, 0.5=1.00 s, 0.6=2.49 s; Env Release 0.4=328 ms, 0.5=1.00 s, 0.6=2.49 s, 0.7=5.38 s; Unison = 1+15v; Uni Detune = v^2; Uni Width = 200v-100; Fine = 200v-100 cents; Sustain 0.9=-1.8 dB, 1.0=0 dB.
@@ -474,7 +474,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session; `scratch/serum2-params-ch1.json`
 
 ### Stock effect parameter names carry a "^b^a" prefix
-- Status: docs
+- Status: fixed (live 2026-09-14: check 12 -- Reeverb 2 rows read "Low cut"/"High cut" with `raw_name` "^b^aLow cut", `find("Wet level")` -> 12; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `plugins.clean_parameter_name` strips `^X` codes and `^^hint ^` blocks, `PluginParameterInfo.name` is clean and `raw_name` keeps the original, `find`/`set_named`/`set_verified` accept either form; Python-side only, works against any host)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `fl.mixer[4].effects[1].parameters.page()` on Fruity Chorus / Reeverb 2 / Delay 3 / Parametric EQ 2 / Limiter / Compressor / Soft Clipper / Stereo Shaper / Hyper Chorus / Vintage Chorus
 - Expected / actual: names such as "Wet level"; actual every stock (non-wrapper) parameter is named "^b^aWet level" (FL hint-formatting bytes), Vintage Chorus band 0 is "^b^a^^(shift-click for I + II) ^Mode". `find(name)` / `set_named(name, v)` therefore need the prefix; wrapper (FabFilter) names are clean.
@@ -482,7 +482,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (phase-2 dumps in `records/phase-2-mix.md`)
 
 ### Send levels ARE readable (effects.list_text "sends:" line); unity is 0.8, not 1.0
-- Status: docs (corrects phase-1 entry "Drum-insert routing to a bus cannot be verified")
+- Status: fixed (live 2026-09-14: check 18 -- send levels read back 0.8 and 0 through `sends()` and the `effects.list_text()` "sends:" line agrees; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fruitylink.SEND_UNITY = 0.8`, `send_level_to_db`/`send_level_from_db` in `fruitylink.levels`, `MixerTrack.send_to(destination, level=1.0, *, db=None, active=True)` (default kept for compatibility, docstring says 1.0 is about +5.6 dB and steers to 0.8), typed readback via `sends()` instead of the "sends:" text line; see the send/route readback entry above)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `fl.mixer[8].effects.list_text()` -> "sends: ->0 'Master' (0), ->15 'Drum Bus' (1)"; untouched inserts read "->0 'Master' (0.8)"
 - Expected / actual: `set_mixer_send` docs say "1.0 ≈ unity"; actual the default Master route of every insert reads 0.8, so 1.0 is above unity (FL send/volume scale 0..16000 with 12800 = 0 dB = 0.8). Phase 1 had the seven drum inserts feeding the Drum Bus at 1.0 (hot); the Master route at 0 is confirmed off (level 0, no flag readable).
@@ -490,7 +490,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### No Sampler channel-settings ops: time stretch, sample start/end, fades, reverse, stretch mode
-- Status: open
+- Status: fixed-unverified (live PARTIAL 2026-09-14: check 21 -- the control ids read and write consistently on channel 8 (id 14 is stretch time: 1000 -> 1500 -> 1000, id 13 unmoved, `sample_offset` 0) but the checklist snippet's int-keyed result is refused by the worker (`TypeError: JSON object keys must be strings.`) and the GUI knob movement was not eyeballed; fix in progress for stage i; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; partial: generic `get_channel_control(channel, control)` / `set_channel_control(channel, control, value)` on the REC_Chan command bus (same protocol as the verified volume 0 / pan 1 / pitch 4 / mute 7 / route 8; range 0..0x1FFF), Python `Channel.control(i)`, `set_control(i, v)`, `ChannelControl` enum, `Channel.stretch_time` (REC_Chan_StretchTime = 14) and `Channel.sample_offset` (REC_Chan_SmpOffset = 13) on FL-SDK ids that are NOT live-verified (raw FL ints); reverse, fades, trim/sample end and stretch mode are not REC events (no bridge path, Edison GUI-only): api.md "Sampler channel settings" keeps the `wave`-module trim/reverse + `replace_sample` recipe)
 - Seen: 2026-09-14, Parking Lot Moon phase 2 (Vox E8 loop is 112 BPM, brief asks for 100 BPM; roomtone is 70 s under an 8-bar intro)
 - Call: catalog search of the 144 ops for stretch/tempo/sample start/fade/reverse; only `add_sample_channel`, `replace_channel_sample`, `set_channel_pitch` exist
 - Expected / actual: a way to set the Sampler's time-stretch (mode + tempo/multiplier) or trim/fade/reverse the sample; actual nothing, and Edison is GUI-only.
@@ -498,7 +498,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Fruity Delay 3 exposes three parameters named "Distortion" (18, 19, 20)
-- Status: docs
+- Status: fixed (live 2026-09-14: check 22 -- `LookupError: ... found 3 at indices 18, 19, 20 ...`, "Distortion [19]" wrote index 19, `all(unique=True)` lists the three bracketed names; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `find`/`set_named` collect duplicates and raise `LookupError: ... found 3 at indices 18, 19, 20 ...` before any write; `find("Distortion [19]")` / `set_named("Distortion [20]", v)` address one; `unique_names(rows)` and `all(unique=True)` list them as `Distortion [18]`; section names such as "(Drive)" are not knowable from the plugin; the Delay 3 calibration is in `data/parameter-scales.json`)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `fl.mixer[4].effects[3].parameters.page()`
 - Expected / actual: unique names; actual indices 18-20 all read "^b^aDistortion", so `set_named`/`find` cannot address them.
@@ -506,7 +506,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `set_verified` reports verified=False when the slot already holds the value
-- Status: docs
+- Status: fixed-unverified (live FAIL 2026-09-14: check 15 -- `set_verified("Tempo sync", 1.0)` on a Fruity Delay 3 slot already On returned `{verified: false, unchanged: false, attempts: 6, display: "On"}`; the row reads `rawValue 1, normalized null`, so `normalized_from_raw` decodes the native integer as a float32 denormal and the unchanged path never fires; fix in progress for stage i; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `VerifiedWrite.unchanged: bool` (default False); a slot already at the value returns `verified=True, unchanged=True, attempts=1, display_changed=False` after one readback instead of burning every attempt)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `parameters.set_verified(2, 1.0)` on Delay 3 "Tempo sync" (already On), "Output dry" (already 100%), Hyper Chorus "Modulation amount" (already 50%)
 - Expected / actual: verified=True (value is in place); actual `verified=False, display_changed=False` because the raw value never changed, which reads like a failed write in a batch summary.
@@ -514,7 +514,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### No sidechain routing: Fruity Limiter has no sidechain-source parameter, Pro-C 3 "External" has no source
-- Status: open
+- Status: wontfix (FL's "Sidechain to this track" is a route flag that is not in the verified `FlMixerLayout` (send records hold only level int32 @0 and active byte @4; the RE notes a per-track table at +0x12A4 and an FX sub-table at +0x158, neither profiled), `FLmx_SetRouteActiveCore` has no sidechain argument and can raise a "Disable routing?" dialog, so a send always sums audio; documented in the `set_mixer_send` docstring and api.md "Verify sends and bus routing"; workaround: `fl.automation.pump(AutomationTarget.mixer_volume(insert), ...)` or `fl.automation.duck(...)` keyed to `fl.playlist.onsets(kick, ...)`, or flip the route in the GUI; RE lead: resolve the +0x12A4 table for 26.1.3.5570)
 - Seen: 2026-09-14, Parking Lot Moon phase 2 (brief: Fruity Limiter COMP on the bass keyed from the Kick insert)
 - Call: `fl.mixer[6].effects[2].parameters.page()` on Fruity Limiter (18 parameters: gain, sat, limiter, comp threshold/ratio/knee/attack/release/curve/RMS, noise gate; no sidechain input); `Pro-C 3` parameter 21 "Side Chain Input" accepts 0.25..0.34 -> "External" (0 Internal, 0.5 Host Sync, 1.0 MIDI); catalog has only `set_mixer_send(src, dst, level)` with no sidechain flag
 - Expected / actual: a way to mark the 8 -> 6 route as a sidechain (FL right-click "Sidechain to this track") so the limiter/Pro-C 3 sees the kick; actual a plain send would sum the kick into the bass insert, and the wrapper's sidechain input stays silent, so Pro-C 3 External would never compress.
@@ -522,7 +522,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Mixer-volume dB curve is undocumented; gain staging done in plugin output gain instead
-- Status: docs
+- Status: fixed-unverified (live FAIL 2026-09-14: check 45 -- isolated renders measure a 12.70 dB drop for mixer volume 12800 -> 6400 and 14.21 dB for 12800 -> 5769, against the model's 17.4 / 20.0 dB; solved exponent about 2.05-2.11, not `FADER_EXPONENT` 2.89; fix in progress for stage i; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; new `fruitylink.levels` (`mixer_volume_to_db`/`mixer_volume_from_db`, `fader_db`/`fader_position`, `volume_table`, constants `MIXER_VOLUME_MAX=16000`, `MIXER_VOLUME_UNITY=12800`, `SEND_UNITY=0.8`, `FADER_EXPONENT` about 2.889; model dB = 20 * 2.889 * log10(position / 0.8) from FL's 0.8 = 0 dB / 1.0 = +5.6 dB anchors, every helper takes `exponent=`), `MixerTrack.volume_db` and `set_volume(value=None, *, db=None)`, api.md "Volume in decibels" with the raw/dB table; bridge `SetMixerVolumeAsync` now clamps at 16000 instead of 12800 (the +5.6 dB headroom was unreachable); the exponent needs the render calibration (Ember Tides 6800 -> 12800 measured +11.8 LU, model 15.9, square law 11.0); `set_master_volume` left on 0..12800)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `fl.ops.get_mixer_volume` (all inserts 12800), `set_mixer_volume` docs "no dB conversion is defined"
 - Expected / actual: a documented raw -> dB mapping (FL mixer: 12800/16000 = 0 dB, max +5.6 dB, curve unknown; Ember Tides 6800 -> 12800 measured +11.8 dB, which fits neither a linear nor the +5.6 dB power curve); actual none, and renders are forbidden in this phase.
@@ -530,7 +530,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Unlicensed Super VHS instance hung the next embedded request (60 s timeout), not the MCP
-- Status: caller (plugin licensing), docs
+- Status: docs (deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; troubleshooting.md section (symptom, cause, remedy); `InProcBridge.RawAsync` now runs a best-effort `UiThreadProbe.Describe()` after a timeout so the `TimeoutException` reads "FL's UI thread is not processing messages; visible FL windows: 'Sign in - Super VHS' ..."; whether Fl-MCP's outer "FL operation timed out or was cancelled" text forwards the inner message needs the live check)
 - Seen: 2026-09-14, Parking Lot Moon phase 2
 - Call: `fl.mixer[16].effects[4].load("Super VHS")` succeeded and its 9 parameters read (Heat/Wash/Drift/Magic/Mix/Output/Static/Shape/Bypass, all defaults); the NEXT request (`fl.mixer[16].effects[0].load("Fruity Parametric EQ 2")` ...) hung at its first native call and timed out ("FL operation timed out or was cancelled"), leaving insert 16 slot 0 empty.
 - Expected / actual: parameter writes; actual the plugin had opened its cloud sign-in dialog (unauthenticated instance) and blocked FL's UI thread. After the user signed in and reloaded the plugin, a retry in the same session read and wrote every parameter by display (Heat 15 %, Wash 10 %, Drift 10 %, Static 5 %, Mix 30 %, Output 80 %). Cause: plugin licence state, not the bridge; the bridge only lacks a way to detect/dismiss a modal plugin dialog.
@@ -538,7 +538,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `AutomationPointSpec.tension` direction is undocumented (positive = fast start, slow finish)
-- Status: docs
+- Status: docs (deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `AutomationPointSpec` docstring states the sign convention with the live numbers (tension belongs to the segment ENDING at the point; positive = fast start / slow finish; negative = slow start accelerating into the point); constants `fruitylink.TENSION_EASE_OUT = 0.5` and `TENSION_EASE_IN = -0.5`; `set_point`, `set_points`, `pump` docstrings and the api.md conventions table updated)
 - Seen: 2026-09-14, Parking Lot Moon phase 3
 - Call: `fl.automation[21].set_points([... P(96, 0.662), P(127.98, 0.809, 0.3) ...])` (pad Pro-Q 4 High Cut opening across bars 25-33), then `seek` to bar 29 and read the display
 - Expected / actual: docs say only "tension -1..1"; a slow opening that accelerates into the downbeat was wanted. Actual: tension +0.3 on the segment's end point gave 5698 Hz at the half-way bar (89 % of the travel at 50 % of the time), i.e. positive tension bends the segment fast-early; -0.3 gave 2282 Hz at bar 29 and 3004 Hz at bar 31 (slow-early, accelerating). `pump()` uses +0.5 on its recovery segment, which therefore recovers fast then eases.
@@ -546,7 +546,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (bar-29 display 5698 Hz vs 2282 Hz for +0.3 / -0.3)
 
 ### No automation inventory: `fl.automation` has no list/describe, event ids only via `get_channel_plugin`
-- Status: open
+- Status: fixed (live 2026-09-14: check 5 -- `describe()` printed 17 clips with decoded targets (insert 4 slot 0 parameter 48, `mixer_volume` 24 and 6) and placements; `list()[0].target` is an `AutomationTarget`; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fl.automation.list(with_points=True) -> tuple[AutomationChannelInfo, ...]` (channel, name, `targets_text`, `event_ids`, decoded `targets`, `.target`, `point_count`, `clips`) and `fl.automation.describe() -> str` (one line per clip), built on `query_channels` + `get_channel_plugin` (parses ": automation clip -> ...", decodes `event 0x...` via `from_event_id`) + `query_automation_points` + one `query_clips` pass; `parse_automation_link` exported from `fruitylink.automation`; unlinked clips ("no generator") are not listed and placements match by `source_index == channel index`)
 - Seen: 2026-09-14, Parking Lot Moon phase 3
 - Call: `dir(fl.automation)` -> only `create`, `pump`, `__getitem__`; `fl.ops.query_channels()` marks automation channels like any other channel
 - Expected / actual: a `describe()`/`list()` that returns every automation channel with its target, event id, point count and clip placements; actual the inventory had to be built by filtering `query_channels()` on the "PLM - " name prefix, calling `get_channel_plugin(channel=i)` (prints "automation clip -> event 0x71008030") and `automation[i].list()` per channel, and matching `query_clips()` rows with `source_kind == "channel"`.
@@ -554,7 +554,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session; `records/phase-3-state-v008.json`
 
 ### Automation clips cannot loop or offset: one 1-bar tile cannot follow the alternating kick pattern
-- Status: docs / caller
+- Status: fixed (live 2026-09-14: check 29 -- `fl.automation.duck` over bars 9-25 built 99 points for 33 kick onsets (3 per hit, first hit at the clip start) with the 0.69/0.80 hold and tension 0.5 recovery; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; helpers: `fl.playlist.onsets(channel, start_tick, end_tick)` reads a channel's note-ons through the playlist clips (same rules as `gaps`); `fl.automation.duck(target, hits_ticks, start_tick, length_tick, *, track, depth, recovery_beats=0.25, floor, ceiling, tension, name)` writes ONE envelope with a dip at every absolute hit; `fl.automation.tile(target, shape, start_tick, length_tick, *, track, period_beats, offsets_beats=(0,), name)` repeats a shape with per-repeat offsets; pure `duck_points`/`tile_points` (`pump_points` is now `duck_points` on a regular grid); `add_clip` docstring states the no-loop/no-offset fact)
 - Seen: 2026-09-14, Parking Lot Moon phase 3 (bass sidechain emulation on `AutomationTarget.mixer_volume(6)`)
 - Call: `AutomationCurve.add_clip(track, start_tick, length_tick)` re-places the same channel (curve restarts at each placement, no clip offset/loop flag); the kick pattern is a 2-bar cycle (odd bars 1 + 2.5, even bars 1 + 3; choruses 1 + 3 / 1 + 2.5 + 3; pre-chorus 1 only)
 - Expected / actual: a tiled 1-bar duck matching every kick; actual impossible with one envelope, and 80 separate placements of a 2-bar tile would still miss the chorus/pre variants.
@@ -562,7 +562,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (`PLM - Bass duck (insert 6)`, channel 36, event 0x71801fc0)
 
 ### No `AutomationTarget` for mixer send levels; automated the send insert's own volume instead
-- Status: open
+- Status: wontfix (the bridge has no send-level event id: `SetMixerSendAsync` pokes the send table directly, no `0x1FCx`/send control constant exists in the SDK, native bridge or Fl-MCP notes, and creating a link on a guessed id could crash FL; documented in the `AutomationTarget` docstring, the api.md conventions table and the automation section; workaround: automate the return insert's `mixer_volume` (all sources together, base the curve on its current level) or per source the send effect's wet parameter via `AutomationTarget.effect_parameter(track, slot, index)`; live probe for a later `mixer_send(src, dst)` target: create a send-level automation clip by hand in FL and read its `event 0x...` in `fl.automation.describe()`)
 - Seen: 2026-09-14, Parking Lot Moon phase 3 (delay-send pulses at phrase ends)
 - Call: `AutomationTarget` kinds are channel volume/pan/pitch, mixer volume/pan, plugin_parameter; `set_mixer_send(src, dst, level)` has no automation counterpart
 - Expected / actual: automate Lead->24 and Vox->24 send levels; actual no such target, so the pulse is on `mixer_volume(24)` ("Delay Send" return insert), which moves all sources together and lowers the phase-2 baseline (0.66 in verses = below the 0.8 unity that phase 2 assumed; 0.8 at phrase ends and through the interlude, 0.72 in the outro).
@@ -570,7 +570,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (`PLM - Delay send level (insert 24)`, event 0x76001fc0; readback 10560 at bar 20, 12800 at bars 16 and 52)
 
 ### Fruity Reeverb 2 parameter scales are undocumented; first writes landed far off
-- Status: docs
+- Status: fixed (live 2026-09-14: check 23 -- `scale_for("Fruity Reeverb 2", "Low cut").to_normalized(300)` displayed "302Hz" against the 300.0 Hz prediction, `verified` true; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `python/src/fruitylink/data/parameter-scales.json` + `fruitylink.scales`, re-exported from `fruitylink.plugins`: `scale_for(plugin, parameter)`, `scales_for(plugin)`, `known_plugins()`, `add_scale()`, `ParameterScale.to_display/to_normalized/describe` (kinds linear, exp, power, log_db, table, enum; every entry carries confidence + evidence); seeded with the Reeverb 2 and Delay 3 measurements from this log; api.md "Known parameter scales")
 - Seen: 2026-09-14, Parking Lot Moon phase 3 (new Reeverb 2 on the Master, wet 3 %)
 - Call: `set_plugin_param(channel_or_track=0, slot=0, param_index=i, value=v)` with guessed v (Low cut 0.25 -> 764 Hz, High cut 0.6 -> 13.5 kHz, Predelay 0.2 -> 200 ms, Decay 0.35 -> 7.1 s, Dry 1.0 -> 125 %)
 - Expected / actual: a documented v -> display mapping; actual none, three calibration writes per knob (display lags within one request, so each read needed a 0.25 s pause).
@@ -578,7 +578,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `query_plugin_parameters` `raw_value` is a float bit pattern, not the normalized value
-- Status: docs
+- Status: fixed (live 2026-09-14: check 13 -- raw 1062303685 (0x3F5178C5) decoded to `normalized` 0.8182337880134583 with no `struct` work, display "7000.0 Hz"; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `PluginParameterInfo.normalized` decoded in `__post_init__` via `normalized_from_raw` (None for native integer scales), serialised as `normalized` next to `rawValue`; `decode_record` tolerates the field missing from an older host)
 - Seen: 2026-09-14, Parking Lot Moon phase 3
 - Call: `fl.ops.query_plugin_parameters(channel_or_track=4, slot=0, offset=48, limit=1).items[0].raw_value`
 - Expected / actual: the 0..1 value written by the automation clip; actual 1059075707 (= 0x3F203A7B, the IEEE-754 bits of 0.626) with no `normalized_value` field, so the display string is the only readable value and numeric verification needs `struct.unpack("f", struct.pack("I", raw))`.
@@ -586,7 +586,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Transport `seek` readback drifts 14-20 ticks; bar-level automation values read fine, 150 ms ducks do not
-- Status: open
+- Status: fixed (live 2026-09-14: check 14 -- `seek_settled(3072)` returned `positionTick 3072, settled true, reads 2`: zero drift; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; client-side settle, no bridge change (the bridge has no "automation pass done" signal): `fl.transport.position_tick` (parsed from `get_song_state`), `fl.transport.seek_settled(tick, attempts=20, delay=0.05) -> SeekResult(requested_tick, position_tick, settled, reads)` polls until two consecutive reads agree, `seek_ticks(tick, settle=True)` / `seek_beats(..., settle=True)` return the same, `SeekResult` exported; 24-tick ducks are still best verified from the point list)
 - Seen: 2026-09-14, Parking Lot Moon phase 3 (verifying clips by seeking and reading plugin displays / mixer volumes)
 - Call: `fl.ops.seek(tick=3072)`; `time.sleep(0.12)`; `fl.transport.state_text()`; `fl.ops.get_mixer_volume(track=6)`
 - Expected / actual: position 3072 and the duck's dip value (0.69 -> 11040); actual `pos=bar 9 beat 1 (tick 3086)` with playing=no, every seek landing 14-20 ticks late (about the wait time at 100 BPM), so the 24-tick dip is never sampled (12784-12800). Bar-scale curves verify well this way (Pad LP 1500/1800/7000/2500/8000/1000 Hz at bars 1/20/33/52/88/107, drum LP 2989 Hz at tick 12254 vs 20000 Hz at 12294, lead shelf -5.00/0.00 dB, mixer volumes 10560/12800/0).
@@ -594,7 +594,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### The named SDK venv has no numpy/soundfile; the `fruitylink.analysis` helpers are pure Python and slow on a full song
-- Status: caller / docs
+- Status: fixed (live 2026-09-14: checks 32 and 43 -- numpy confirmed in the embedded runtime by the orchestrator, and `scan_bars(bpm=100)` over the 259.2 s full render took 33.97 s, seconds not minutes; note the dev venv `sdk\python\.venv` still reports `_kernels.USE_NUMPY False` until `uv sync`; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; root cause: the embedded CPython 3.14.6 runs with `site_import` off and an explicit module search path and the extension mechanism accepted only one wheel per `python/extensions/<name>/`; `EmbeddedPythonRuntimeLocator.DiscoverExtensionPackages` now also accepts an unpacked `<extension>/site-packages`, the deploy ships `python/extensions/analysis-support` with numpy 2.5.1 (installer `stage-analysis-support.ps1`, `python-analysis.json` pin, `package.ps1 -NumpyWheelCacheDirectory`, `--without-analysis-support`), `pyproject.toml` gains the `analysis` extra (`uv sync` or `pip install -e sdk\python[analysis]` for the dev venv); `soundfile` is not needed (the WAV reader is pure); `fruitylink.analysis` takes the numpy fast path when `_kernels.USE_NUMPY` is true, the pure path stays the default)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (verifying the v009 full render, 259 s stereo float WAV)
 - Call: `sdk\python\.venv\Scripts\python.exe -c "import numpy, soundfile"` -> `ModuleNotFoundError`; `fruitylink.analysis.loudness` imports only `array`/`math`
 - Expected / actual: the phase brief promised numpy/soundfile in that venv; actual it only has the SDK, and `load_wav` returns an `AudioSource` without `summary()` (the docs' `audio.summary(loudness=True, true_peak=True)` is on `fl.analysis.wav(...)`, the `AudioAnalysis` wrapper). `scan_bars` + `describe_sections` on the full 259 s render took about 2.5 min of pure Python.
@@ -602,7 +602,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session; `Parking-Lot-Moon/records/verification-v009.json`
 
 ### GMS authored by parameter renders silence; its displays are raw fractions; a `.gmsynth` preset loads through `load_channel_plugin_state`
-- Status: open (docs)
+- Status: docs (deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; cause as recorded (GMS oscillators are GUI-chosen single-cycle "Synth Waves", not parameters; not re-verifiable offline); `Channel.load_preset(path)` / `Channels.load_preset_file(index, path)` added and the `load_channel_plugin_state` docstring now lists which formats load (Serum 2 .vstpreset, GMS .gmsynth, FL .fst; .SerumPreset ignored); recipe "Start a native synth from a factory preset" in examples.md)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (first full render v009: intro bars 1-6 at -50 dBFS, pad harmonics at -70 dB; verse/chorus pad missing entirely)
 - Call: phase 1 `set_plugin_param` on GMS channel 4 (osc mixes, unison 4, detune, amp ADSR, filter cutoff 0.60); phase 4 `fl.channels[4].parameters.page()` -> "CHN: Amp Attack = 0.50 %", "Filter Cutoff = 0.60 %" (no units, no oscillator waveform parameter at all); `fl.ops.load_channel_plugin_state(channel=4, path=r"...\GMS\Pads & Textures\Smooth & Warm TE.gmsynth")`
 - Expected / actual: a pad; actual the parameter-authored GMS instance is inaudible (bars 1-5 150-400 Hz at -58 dB; shortening the attack to 0.10 changed nothing, so it is not an envelope problem: GMS oscillators are single-cycle "Synth Waves" .wav files chosen in the GUI, which the parameter list never exposes, and the fresh instance evidently has none loaded). The `.gmsynth` preset loaded in place through the dispatcher route (verification line: same instance, 226 differing bytes = 4.5 %, unison 10, cutoff 0.42, amp level +4.5 dB) and the pad became audible (150-400 Hz -58 -> -40 dB in the same intro render). The op docstring says proprietary preset files are "silently ignored" (true for .SerumPreset); for GMS it works.
@@ -610,7 +610,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: `Parking-Lot-Moon/scratch/v010-intro-attack010.wav` vs `v010a-intro-gmspreset.wav`; `records/phase-4-master.md`
 
 ### `set_channel_volume` takes `value=`, `set_mixer_volume` / `fl_mixer_set` take `volume=`
-- Status: docs
+- Status: fixed (live 2026-09-14: check 16 -- `set_channel_volume(volume=)`, `set_mixer_volume(volume=)` and the raw `invoke` alias were all accepted with no TypeError, reading back 9000 / 12800; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; canonical keyword stays `value=`; the generator emits `ARGUMENT_ALIASES` so `set_channel_volume`, `set_mixer_volume`, `set_master_volume` accept `volume=` and `set_channel_pan`, `set_mixer_pan` accept `pan=` (`values.resolve_alias` names the canonical keyword when none/both are given); the host accepts the same aliases on the wire (`OperationRegistry.ArgumentAliases`) so an old wheel or raw `invoke` works too; Fl-MCP `fl_mixer_set` description still says 0..12800 and should say 0..16000)
 - Seen: 2026-09-14, Parking Lot Moon phase 4
 - Call: `fl.ops.set_channel_volume(channel=15, volume=8000)`
 - Expected / actual: same keyword as the mixer op; actual `TypeError: ... unexpected keyword argument 'volume'. Did you mean 'value'?` (one wasted request; `fl_python_api` shows the name but the two ops are inconsistent).
@@ -618,7 +618,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### `fl_project_start` reports the template tempo (140) before the resumed project settles
-- Status: open
+- Status: fixed (live 2026-09-14: check 3 -- every resume reported `tempo 100` with `settle {stable true, 2015-2270 ms, 4-5 polls, firstTempo 100}` and no `ProjectUnsettled` warning; the fresh template start reported its own real 140; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `ManagedSession.LaunchAsync` calls `AwaitSettledAsync` after readiness: polls `status` every 250 ms until tempo, PPQ, title and path are unchanged for 2 s (20 s cap, bounded by the launch deadline); the start result carries `settle {{stable, milliseconds, polls, firstTempo}}` and a `ProjectUnsettled` warning with the last observed values when the wait runs out; `fl_status` shows `settle: null`; every start takes about 2 s longer)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (`fl_project_start(projectPath=v011, sourceProjectPath=<render snapshot v010>)`)
 - Call: the start result said `"tempo":140` for a 100 BPM project; `fl_status` and `fl.ops.get_tempo()` a few seconds later both said 100, and the following full render was 259.2 s (correct for 108 bars at 100 BPM).
 - Expected / actual: the readiness result should carry the loaded project's tempo (it is documented as "Returns readiness, tempo and PPQ"); actual it can carry the template default (140) if FL has not finished applying the loaded project when the probe runs. Every other resume this session reported 100, so it is a race, not a corruption.
@@ -626,7 +626,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (v011 start result vs fl_status)
 
 ### Channel volume raw scale is a power curve: 5000 is about -18 dB, 3200 about -29 dB; quiet texture samples vanished
-- Status: docs
+- Status: fixed-unverified (live FAIL 2026-09-14: check 45 -- isolated renders measure a 12.54 dB drop for channel volume 12800 -> 6400 against the model's 17.4 dB; solved exponent about 2.08, not `FADER_EXPONENT` 2.89 (the readback half of check 17 passed: `volume_db = 0.0` -> raw 10240); fix in progress for stage i; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fruitylink.levels.channel_volume_to_db`/`channel_volume_from_db` on the same fader model (`CHANNEL_VOLUME_MAX=12800`, `CHANNEL_VOLUME_UNITY=10240`, `CHANNEL_VOLUME_DEFAULT=10000`), `Channel.volume_db` and `set_volume(value=None, *, db=None)`, every volume op docstring carries the scale and a table; `fl.samples.describe(channel)` / `fruitylink.analysis.describe_samples(paths)` report a sample's peak/RMS before a channel volume is chosen; the exponent shares the mixer calibration caveat)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (textures and the vocal loop inaudible in v009/v010; isolated stem render `scratch/v011-stem-texvox-49-56.wav`)
 - Call: phase 1 `set_channel_volume` 3200/2800/3600 (textures), 5000 (vox), 10000 (kick); `query_channels().volume` reads them back but no dB is documented for channels either
 - Expected / actual: phase 1 treated 3200/12800 as roughly -12 dB; actual the mixer-style curve (0.8 = 0 dB, 1.0 = +5.6 dB, exponent about 2.9) gives 3200 -> about -29 dB and 5000 -> about -18 dB, and the Splice texture files are themselves very quiet (`Tex_TapeHiss.wav` RMS -53.6 dBFS, `Tex_Roomtone_Suburb-8bars.wav` -43.6, crackle -35.4; measured with ffmpeg astats), so the texture bed sat near -80 dBFS and the vocal loop at -43 dBFS RMS with everything else muted. Nothing in the SDK reports a sample's level at `add_sample_channel` time even though `fl.analysis.wav` could.
@@ -634,7 +634,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session; `records/phase-4-master.md`
 
 ### Full render died mid-way (FL render exit code 250477278), left a 94 s partial WAV with a drifting timeline; retry from the preserved snapshot succeeded
-- Status: open
+- Status: fixed (live 2026-09-14: check 42 -- the full render returned `seconds 259.2` against `expectedSeconds 259.2`, one attempt with `outcome ok` in 105.6 s, no warnings; the retry path itself cannot be provoked deliberately; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; new `ManagedSession.Render.cs`: before the editor stops the server reads the new plugin op `song` (`SongExtent`: later of last clip end and last marker, seconds at constant tempo; `expectedSeconds: null` on an older plugin), classifies each attempt (nonzero exit, invalid WAV or shorter than 90 % of the span = failed), moves the partial to `<name>.failed-attempt<n>.wav` (never deleted) and renders the same snapshot once more with a fresh dialog monitor; the result gains `seconds`, `expectedSeconds`, `attempts[]` and `RenderRetried` / `RenderShorterThanExpected` warnings; a second failure throws one IOException naming the snapshot, both attempts and the last 8 lines of today's `plugin-host-*.log`; deadline expiry and unanswerable dialogs are not retried but their partial is moved aside)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (`fl_project_render(outputPath="Parking-Lot-Moon/Parking-Lot-Moon-v011.wav")`, first attempt)
 - Call: same call that succeeded for v009 and v010 (108 bars, 259.2 s, 25 inserts of FabFilter/iZotope/Baby Audio/stock effects)
 - Expected / actual: WAV or a clean error; actual "Render failed. Snapshot preserved at ...\5bce15ae...\Parking-Lot-Moon-v011.flp. FL render exited with code 250477278" after about 40 s, the session gone, and a 36 MB `Parking-Lot-Moon-v011.wav` (94.3 s) left at the output path. Its first 16 bars match the previous render but from about bar 16 the content runs ahead (chorus material at bar 24, 7 dB hotter) as if the renderer changed tempo or dropped buffers before dying. Because the partial file occupies the output path, an immediate retry would be refused ("must not exist"). `fl_project_start` from the preserved snapshot and the same render call then produced the full 99.5 MB file; the start result again showed `tempo 140` before `fl_status` read 100.
@@ -642,7 +642,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: `Parking-Lot-Moon/scratch/v011-render-crash-partial.wav`; snapshots `5bce15ae2ca84133a2aa37cf6c223892` (failed) and `64d771eb4a9a48baa1ca1e90a9fe6ab6` (retry)
 
 ### Plugin shadow copies are never pruned: `%LocalAppData%\FruityLink\plugin-shadow` reached 81 GB
-- Status: fixed-unverified (deployed 2026-09-14 from stage deploy-20260914-g, backup-installed-20260914-162830; the root was purged by hand (820 entries) before the deploy; live check = a "shadow: pruned N stale plugin copies" line in the plugin-host log after a later FL launch. Source: `ShadowCopyStore` now writes a `.owner` marker (pid + start time) into every copy and sweeps the root on host start, deleting copies whose owner process is gone; marker-less legacy copies are deleted only when none of their files is locked; 3 new tests in `ShadowCopyStoreTests`; needs a host redeploy)
+- Status: verified (deployed 2026-09-14 from stage deploy-20260914-g, backup-installed-20260914-162830; the root was purged by hand (820 entries) before the deploy; live check = a "shadow: pruned N stale plugin copies" line in the plugin-host log after a later FL launch. Source: `ShadowCopyStore` now writes a `.owner` marker (pid + start time) into every copy and sweeps the root on host start, deleting copies whose owner process is gone; marker-less legacy copies are deleted only when none of their files is locked; 3 new tests in `ShadowCopyStoreTests`; needs a host redeploy; batch-2 evidence 2026-09-14 (deploy state verified by DLL comparison, sweep not yet exercised): the installed `FruityLink.Plugins.Host.dll` (sha256 1293c884…, 87,040 B) is byte-identical to deploy-20260914-g and contains the "shadow: pruned" / `.owner` strings while `backup-installed-20260914-162830` (84,480 B) contains neither, `plugin-shadow` is empty (0 entries, mtime 16:25 = the hand purge), no FL launch has happened since the 16:28 deploy (last host log line 16:09:52) so the sweep has never run, the 15:25-16:09 "shadow: could not delete … FruityLink.Ui.Avalonia.dll is denied" lines came from the OLD host's discovery-probe unload (not the sweep), and `PruneStale` logs only when removed > 0 so the "shadow: pruned N" line can only appear on the SECOND launch after the purge; no code changed, redeployed unchanged in stage deploy-20260914-h)
 - Seen: 2026-09-14, reported by the user during Parking Lot Moon phase 4
 - Call: every `fl_project_start` / render / close cycle (the host shadow-copies `plugins\fl-agent` 281 MB, `fl-python-ide` 129 MB and `fl-mcp` 1 MB per FL launch)
 - Expected / actual: copies removed when FL exits; actual 772 GUID folders (after the user had already deleted many) dated 2026-09-12..14, ~410 MB per launch. `ShadowCopyStore` only deleted a copy in `UnloadAlc`/`SafeUnload`, which never runs when FL is closed or killed by the MCP, and the constructor deliberately did not purge the root (multi-host safety), so nothing ever cleaned up.
@@ -650,7 +650,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: `ls plugin-shadow | wc -l` = 772; per-entry contents = the plugin folders; `du` of the installed plugin folders 281/129/1 MB
 
 ### Master-chain scales had to be probed: Pro-L 2 Gain = 30 v dB, Output Level = 30 v - 30 dBTP; Super VHS Output 80 % is about -8 dB
-- Status: docs
+- Status: fixed (live 2026-09-14: check 23 -- `scale_for("Pro-L 2", "Gain").to_normalized(12.0)` displayed "+12.00 dB", `verified` true; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; Pro-L 2 (Gain 30 v dB, Output Level 30 v - 30 dBTP), Pro-Q 4 (band freq/gain/Q/shape/slope and Output Level from the session helper, confidence `inferred`) and Super VHS Output (`rough`, one render-derived point) are in `data/parameter-scales.json` via `scale_for(plugin, parameter)`; Pro-L 2 "param 9/10/19..31" stay unnamed)
 - Seen: 2026-09-14, Parking Lot Moon phase 4 (mastering on insert 0)
 - Call: `fl.mixer[0].effects[2].parameters.set_verified(0, 0.6)` on FabFilter Pro-L 2 -> "+18.00 dB" (0.5389 -> "+16.17 dB", so Gain is linear 0..+30 dB, not centred at 0.5); `set_verified(18, 0.9)` -> "-3.00 dBTP" (Output Level linear -30..0 dBTP); Super VHS (16/4) index 5 "Output" 80 % -> 100 % raised the whole texture bus by about 8 dB (reverse swell 250-4 kHz -29 -> -15 dBFS together with +6 dB of Pro-Q output), so 80 % is roughly -8 dB, not -2 dB
 - Expected / actual: a documented mapping for the FabFilter wrapper parameters (the friction log's "FabFilter parameter map ... still needs the live set-then-read harvest" is still open); actual two probe writes per knob, one of which overshot the swell by 14 dB and cost a full render (v011). Pro-L 2 also exposes its meter settings as unnamed "param 19..31" and true-peak limiting / oversampling as "param 9/10" (On/Off) with no names, so they were left at defaults. Ozone 11 was not tried: its parameters are only reachable through the wrapper's names and, after the earlier unlicensed-plugin hang and today's renderer crash, a 2000-parameter plugin on the master of a chain that cannot be auditioned was judged not worth the risk (skipped, per the brief's "else skip").
@@ -658,7 +658,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session; `records/phase-4-master.md`
 
 ### Deleting a note shrinks every playlist clip of that pattern to the new pattern length
-- Status: open
+- Status: fixed (live 2026-09-14: check 27 -- after deleting one note both clips still read 3072 (1536 before the fix), `deleted == 1`; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; C# root cause: `WriteNoteStructsAsync` (shared by `DeleteNotesAsync` and `EditNotesAsync`) snapshots the length of every clip whose source is the pattern (`PatternClipLengthsAsync`), runs the rebuild, then re-pins any clip at the same slot/start/track whose length changed (`RestoreClipLengthsAsync` -> `ResizeClipsAsync`); an unchanged pattern costs no write; `add_notes` is deliberately untouched (a following clip still grows); safety net `notes.delete(..., preserve_clips=True)` / `notes.edit(..., preserve_clips=True)`; interface summaries and the generated `operations.py` docstrings state the rule)
 - Seen: 2026-09-14, Parking Lot Moon phase 5 (v014 revision: chopping the second vocal entry)
 - Call: `fl.ops.delete_notes(pattern=38, targets=[{"channel": 18, "key": 60, "startTick": 1536}])` (and the same on pattern 39); the Vox Interlude / Vox Double clips on playlist tracks 10 / 12 were 3072 ticks long
 - Expected / actual: only the note goes; actual `fl.clips.list()` afterwards shows both clips resized to 1536 ticks (the remaining note's extent), so the clip end moved from bar 57 to bar 53 without any clip call. Harmless here (the 8.57 s sample plays out inside 4 bars and the new chop clip starts at bar 53), but a clip that relied on the old length would silently lose its tail, and `delete_notes` does not report it.
@@ -666,7 +666,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (clips 48 / 51 before 3072, after 1536)
 
 ### `AutomationTarget.plugin_parameter` takes `(track, parameter, *, slot=)`, not the record's `track/slot/param` order
-- Status: docs
+- Status: fixed (live 2026-09-14: check 6 -- all four construction forms compared equal -> `kind plugin_parameter, index 1, slot 0, parameter 556`; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `plugin_parameter(index, parameter, slot=-1)` still works, `plugin_parameter(track, slot, parameter)` (three positionals = record order) now works, keywords `track=`/`channel=`/`channel_or_track=`, `slot=`, `parameter=`/`param=`, ambiguous mixes raise `TypeError`; new unambiguous `generator_parameter(channel, parameter)`, `effect_parameter(track, slot, parameter)`, `from_record("1/0/556" | (1, 0, 556) | {"track":1,"slot":0,"param":556})`; api.md documents all forms)
 - Seen: 2026-09-14, Parking Lot Moon phase 5
 - Call: `AutomationTarget.plugin_parameter(1, 0, 556)` written from the phase-3 record's "1/0/49" notation
 - Expected / actual: a target for insert 1 slot 0 param 556; actual `TypeError: ... takes 3 positional arguments but 4 were given` (signature is `(channel_or_track, parameter, *, slot=-1)`, slot keyword-only). One wasted request; `fl.transport.seek` and `fl.playlist.tracks` were also guessed wrong in the same pass (the seek is `fl.ops.seek(tick=)` / `fl.transport.seek_ticks`, track names are `fl.ops.set_track_name`), none of which the docs index by task.
@@ -674,7 +674,7 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session
 
 ### Parameter display read immediately after `seek` returns the previous position's automated value
-- Status: docs / caller
+- Status: fixed (live 2026-09-14: check 14 -- `display_at` on the Pro-Q 4 Output Level read "-12.00 dB", "-8.00 dB", "-4.00 dB" at bars 5 / 8.5 / 20, the values automated there; deployed 2026-09-14 from stage deploy-20260914-h, backup-installed-20260914-174218; `fl.transport.read_at(tick, reader, settle=0.3, attempts=6, delay=0.1)` does a settled seek, waits the observed 300 ms, then reads until two consecutive values agree; `parameters.read_at(index, tick)` / `display_at(index, tick)`; a documented wait with injectable defaults, no bridge signal exists)
 - Seen: 2026-09-14, Parking Lot Moon phase 5 (verifying the new Pro-Q 4 Output Level automation on insert 1)
 - Call: `fl.ops.seek(tick=...)` then `fl.mixer[1].effects[0].parameters.page(offset=556, limit=1)` in the same request, three seeks in a row (bars 5 / 8.5 / 20)
 - Expected / actual: -12 / -8 / -4 dB; actual -4 / -4 / -8 dB, i.e. each read shows the value FL had applied for the *previous* seek (the automation is applied asynchronously after the playhead moves). With `time.sleep(0.3)` between the seek and the read every value was right (-12 / -8 / -4 / -4 / -12 at bars 5 / 8.5 / 20 / 40 / 3), and a second read 300 ms later agreed. Related to the phase-3 "seek readback drifts 14-20 ticks" entry but a different failure: the value is from the wrong position, not a nearby one.
@@ -682,9 +682,206 @@ ound2-snap.SerumPreset>)` wrote 4,332 bytes at exactly that path)
 - Evidence: this session (same request, with and without the sleep)
 
 ### A single long heredoc (about 40 lines, Markdown with apostrophes and backticks) fails to parse in the harness Bash tool
-- Status: open (harness)
+- Status: wontfix (harness Bash tool, reproduced again in this batch with a 138-line quoted heredoc; workaround: write multi-line Markdown with the client's Write tool (or a Python script reading a file) and keep Bash heredocs short; two-sentence note added to Fl-MCP `docs/troubleshooting.md` under "Report a reproducible issue")
 - Seen: 2026-09-14, Parking Lot Moon phase 5 (writing `records/phase-5-v014.md`)
 - Call: `cat > records/phase-5-v014.md <<'EOF' ... EOF` (quoted delimiter, 60 lines of Markdown), once combined with a second python heredoc and once alone
 - Expected / actual: the file; actual `/usr/bin/bash: -c: line 35: unexpected EOF while looking for matching ''` both times, although three shorter quoted heredocs with apostrophes appended to this log fine in the same session. Same family as "Multi-heredoc Bash command failed to parse in the harness" (Ember Tides), but it also hits a single heredoc once it is long enough.
 - Workaround: write long files with the Write tool (or a Python script reading a file), keep Bash heredocs short.
 - Evidence: this session (two failed attempts, Write tool succeeded)
+
+## 2026-09-14 — Post-Parking-Lot-Moon fix batch
+
+Six worktree agents (arrangement, channels-mixer, plugins, server, waveform, live-capture) worked the 37
+Parking Lot Moon entries plus two new capabilities; their batches were merged into the SDK, installer and
+Fl-MCP main trees, built, and deployed 2026-09-14 17:42 as stage `deploy-20260914-h` (backup
+`backup-installed-20260914-174218`), including the rebuilt native FlBridge.dll (harvested
+`FLmx_SetTrackArmed` / `MixerTrackArmedOffset`) and the new `python/extensions/analysis-support`
+extension carrying numpy 2.5.1. Nothing is live-checked yet: FL has not been launched since the deploy.
+The ordered live plan is `batch2-live-checklist.md` in the session scratchpad; batch reports sit beside it.
+
+| Item | Status | New API / where |
+| --- | --- | --- |
+| `playlist.add_patterns` ignores `length_tick` | fixed (live 2026-09-14, check 25) | `AddPatternClipsAsync` pins the explicit length (`PinClipLengthAsync`); `PatternClipSpec.length_tick` defaults to 0 = follow the pattern; `fl.playlist.add_patterns(specs, enforce_lengths=True)` |
+| `fl.clips.resize` takes a sequence of `ClipResize` | fixed (live 2026-09-14, check 26) | `fl.clips.resize(index, length_tick)`, `resize([(index, length_tick), ...])`, `move(index, start_tick, track)`, `delete(7)`, `set_muted(7, True)`; mixed forms raise `TypeError` |
+| `AutomationPointSpec.tension` direction | docs (stage h) | docstring states the sign convention; `fruitylink.TENSION_EASE_OUT = 0.5`, `TENSION_EASE_IN = -0.5`; api.md conventions table |
+| No automation inventory | fixed (live 2026-09-14, check 5) | `fl.automation.list(with_points=True) -> AutomationChannelInfo`, `fl.automation.describe()`, `parse_automation_link` |
+| Automation clips cannot loop/offset | fixed (live 2026-09-14, check 29) | `fl.playlist.onsets(channel, start, end)`, `fl.automation.duck(target, hits_ticks, ...)`, `fl.automation.tile(target, shape, ...)`, pure `duck_points`/`tile_points` |
+| No `AutomationTarget` for mixer send levels | wontfix | no send-level event id in any evidence; recipe: automate the return insert's `mixer_volume` or the send effect's wet parameter via `AutomationTarget.effect_parameter(track, slot, index)`; probe snippet in the arrangement report |
+| Transport `seek` readback drifts 14-20 ticks | fixed (live 2026-09-14, check 14) | `fl.transport.position_tick`, `seek_settled(tick) -> SeekResult`, `seek_ticks(tick, settle=True)` (client-side settle, no bridge signal) |
+| Parameter display after `seek` is stale | fixed (live 2026-09-14, check 14) | `fl.transport.read_at(tick, reader, settle=0.3)`, `parameters.read_at(index, tick)`, `display_at(index, tick)` |
+| Deleting a note shrinks the pattern's playlist clips | fixed (live 2026-09-14, check 27) | `WriteNoteStructsAsync` restores clip lengths after the rebuild (`PatternClipLengthsAsync`/`RestoreClipLengthsAsync`); `notes.delete/edit(..., preserve_clips=True)` |
+| `AutomationTarget.plugin_parameter` argument order | fixed (live 2026-09-14, check 6) | `plugin_parameter(track, slot, parameter)` accepted; `generator_parameter`, `effect_parameter`, `from_record("1/0/556")` |
+| Template mixer has 16 inserts; insert 17 refused | fixed (live 2026-09-14, check 19) | `fl.mixer.insert_count`, `fl.mixer.capacity` (500), `fl.mixer.ensure_inserts(n)`; range error names `ensure_inserts(17)` |
+| No channel delete | wontfix | UI-only in FL; `Channel.retire(name=None)` / `fl.channels.retire(index)` mutes, routes to Master, renames "(unused) ..." |
+| No send/route readback | fixed (live 2026-09-14, check 18) | `query_mixer_sends(track)` / `FlMixerSendInfo`; `MixerTrack.sends()`, `send_level(dst)`, `fl.mixer.routes()`, `set_mixer_send(..., active=)`, `MixerTrack.disconnect(dst)` |
+| Send unity is 0.8, not 1.0 | fixed (live 2026-09-14, check 18) | `fruitylink.SEND_UNITY = 0.8`, `send_level_to_db/from_db`, `send_to(dst, level=1.0, *, db=None, active=True)` (docstring says 1.0 is about +5.6 dB) |
+| No Sampler channel-settings ops | fixed-unverified (live PARTIAL 2026-09-14, check 21: ids read/write, snippet unserialisable; fix in progress for stage i), partial | `get/set_channel_control` (REC_Chan bus), `Channel.control(i)`, `set_control(i, v)`, `ChannelControl`, `Channel.stretch_time` (14), `Channel.sample_offset` (13, unverified ids); reverse/fades/trim/stretch mode have no bridge path (offline `wave` recipe in api.md) |
+| `set_verified` false when already at the value | fixed-unverified (live FAIL 2026-09-14, check 15: verified=False, unchanged=False, attempts=6; fix in progress for stage i) | `VerifiedWrite.unchanged`; `verified=True, unchanged=True, attempts=1` |
+| No sidechain routing | wontfix | flag not in the verified mixer layout (+0x12A4 table unprofiled); `set_mixer_send` docstring + api.md "Verify sends and bus routing"; workaround `fl.automation.pump`/`duck` on `mixer_volume(insert)` |
+| Mixer-volume dB curve undocumented | fixed-unverified (live FAIL 2026-09-14, check 45: 12.70 dB measured vs 17.4 dB modelled; fix in progress for stage i) | `fruitylink.levels` (`mixer_volume_to_db/from_db`, `fader_db`, `volume_table`, `FADER_EXPONENT` about 2.889), `MixerTrack.volume_db`, `set_volume(db=)`; bridge clamp raised to 16000; api.md "Volume in decibels" |
+| Channel volume power curve | fixed-unverified (live FAIL 2026-09-14, check 45: 12.54 dB measured vs 17.4 dB modelled; fix in progress for stage i) | `channel_volume_to_db/from_db`, `CHANNEL_VOLUME_UNITY=10240`, `Channel.volume_db`, `set_volume(db=)`; `fl.samples.describe(channel)` reports sample levels |
+| `value=` vs `volume=` keywords | fixed (live 2026-09-14, check 16) | `ARGUMENT_ALIASES` in `operations.py` (`volume=`, `pan=`), `values.resolve_alias`; host `OperationRegistry.ArgumentAliases`; Fl-MCP `fl_mixer_set` text still says 0..12800 |
+| "FL event 254 is truncated" on every channel | fixed (live 2026-09-14, check 7) | `FlpPluginStateReader` tagged/legacy framing (`Framing.Tagged`, `ParseWith`, `ReadVersion`); `ExtractStateAsync` retry; `InvalidDataException` tolerated in evidence reads |
+| Sample channels "hosts no generator plugin" | fixed (live 2026-09-14, check 8) | `RequireGeneratorAsync` names automation clips and built-in Sampler channels; used by get_state/load_state |
+| `inventory.query_index(text="soft")` misses names | fixed (live 2026-09-14, check 9) | word matching in Python (all words, case-insensitive, name/location/description/comment/author/tags), `limit` after filtering |
+| `parameters.page(limit=4240)` refused | fixed (live 2026-09-14, check 10) | `Parameters.all(filter=None, unique=False)`, `plugins.PAGE_LIMIT = 512`, `IndexError` names the cap |
+| Serum 2 FX slots / unnamed enums | fixed-unverified (live PARTIAL 2026-09-14, check 11: describe right, result unserialisable; fix in progress for stage i), partial | `fruitylink_serum.describe.explain_parameter`, `explain_parameters(fl, channel, filter=, state=)`, `fx_slot_names(state)`; "FX Main Param n" proxy slots stay opaque (state-based `SerumPatch.fx.*` -> `load_preset` route) |
+| "^b^a" prefix on stock effect names | fixed (live 2026-09-14, check 12) | `plugins.clean_parameter_name`; `PluginParameterInfo.name` clean, `raw_name` original; `find`/`set_named` accept either |
+| Fruity Delay 3: three "Distortion" | fixed (live 2026-09-14, check 22) | `find`/`set_named` raise `LookupError` on duplicates; `"Distortion [19]"` form; `unique_names(rows)`, `all(unique=True)` |
+| Unlicensed Super VHS hung the next request | docs (stage h) | troubleshooting.md section; `InProcBridge.RawAsync` + `UiThreadProbe.Describe()` name the visible FL windows in the `TimeoutException` |
+| Reeverb 2 scales undocumented | fixed (live 2026-09-14, check 23) | `data/parameter-scales.json` + `fruitylink.scales` (`scale_for`, `scales_for`, `known_plugins`, `add_scale`, `ParameterScale.to_display/to_normalized`); api.md "Known parameter scales" |
+| Master-chain scales (Pro-L 2, Pro-Q 4, Super VHS) | fixed (live 2026-09-14, check 23) | same table: Pro-L 2 Gain / Output Level, Pro-Q 4 bands + Output Level (`inferred`), Super VHS Output (`rough`) |
+| `raw_value` is a float bit pattern | fixed (live 2026-09-14, check 13) | `PluginParameterInfo.normalized` (via `normalized_from_raw`), serialised as `normalized`; tolerant `decode_record` |
+| GMS by parameter is silent; `.gmsynth` loads | docs (stage h) | `Channel.load_preset(path)`, `Channels.load_preset_file(index, path)`; `load_channel_plugin_state` docstring lists accepted formats; examples.md recipe |
+| SDK venv has no numpy; `fruitylink.analysis` slow | fixed (live 2026-09-14, checks 32/43) | unpacked `<extension>/site-packages` extensions (`EmbeddedPythonRuntimeLocator`); `python/extensions/analysis-support` (numpy 2.5.1, `stage-analysis-support.ps1`, `python-analysis.json`); `pyproject` `analysis` extra; `_kernels.USE_NUMPY` |
+| `fl_project_start` reports the template tempo | fixed (live 2026-09-14, check 3) | `ManagedSession.AwaitSettledAsync` (250 ms polls, 2 s window, 20 s cap); start result `settle {stable, milliseconds, polls, firstTempo}`, `ProjectUnsettled` warning |
+| Full render died mid-way, partial WAV left | fixed (live 2026-09-14, check 42) | `ManagedSession.Render.cs`; plugin op `song` (`SongExtent`); `<name>.failed-attempt<n>.wav`; result `seconds`, `expectedSeconds`, `attempts[]`, `RenderRetried` / `RenderShorterThanExpected`; `Artifacts.ReadWave -> WaveInfo` |
+| Plugin shadow copies never pruned (81 GB) | verified (deploy state; sweep unexercised) | no code change; installed host DLL = deploy-g bytes with the `.owner`/"shadow: pruned" strings; the "pruned N" line can only appear on the second launch |
+| Long heredoc fails in the harness Bash tool | wontfix (harness) | Fl-MCP troubleshooting.md note: use the Write tool, keep heredocs short |
+
+### New capabilities (not friction fixes)
+
+Audio description layer (waveform batch). `fruitylink.analysis.describe_audio(source, *, bpm=None, ppq=None, start_bar=None, beats_per_bar=4, detail="normal")` returns an `AudioDescription` (`.data`, `.text` of 16-24 lines, `.tags`) covering level, envelope sketch, onsets in `bar:beat`, decay/tail, silence, seven-band spectral segments, tonality with root note, stereo width, loop hints and taste-rule tags (`sub-heavy`, `harsh 2-4 kHz`, `wide AND bright`, ...); `compare_audio(a, b)` gives `b minus a` deltas with verdict phrases and `describe_samples(paths, detail="brief")` is a cached one-line-per-file table. The same calls are static members `fl.analysis.describe/compare/describe_samples`, `AudioAnalysis.describe(...)`, and `fl.samples.describe(channel, *, path=None)` (new `fruitylink/samples.py`, fed by `add_sample`/`replace_sample` because FL exposes no Sampler-file query). Measured on numpy: the Parking Lot Moon master (259 s) describes in 2.69 s (`full` 2.71 s) against 7.02 s / 19.13 s pure Python, a 1.1 s Splice snare in 0.09 s, and a 98-file Splice folder in 11.3 s cold / 0.83 s warm; the master reads -13.8 LUFS, 2.6 s trailing silence, 108.00 bars, tags `dark, wide`. Proposed MCP tool `fl_audio_describe(path?, channel?, detail, bpm, ppq, startBar, compareWith)` returning `.text` (companion `fl_audio_browse`); the one SDK gap found is a native `get_channel_sample_path`.
+
+Live capture design (live-capture batch). Route a (FL disk recording) was chosen over a tap VST3, in-process buffer hooks, WASAPI loopback and Edison: arm inserts, seek, record + play a bar range, stop, read the per-insert WAVs FL writes to `Documents\Image-Line\FL Studio\Audio\Recorded` (all inserts sample-aligned in one engine pass). Implemented offline: `SetMixerTrackArmedAsync`/`GetMixerTrackArmedAsync` over the harvested `FLmx_SetTrackArmed` (setter thunk 0x12c3980 on 26.1.3.5570 / 0x11c59d0 on 2025, `RCX = trackStruct, DL = armed`) and `MixerTrackArmedOffset` (+0x1470 / +0x145c), gated by `OperationAvailability` until both resolve; `MixerTrack.armed`; `fruitylink.capture` as `fl.audio` (`capture(inserts, start_bar, end_bar, tail_beats=)` -> `CaptureResult`, `decide(start_bar, end_bar)` -> `CaptureDecision`, `measure_section(...)` -> `SectionMeasurement` or `RenderRequired`, `measure_wav`, `envelope`); 24 tests against a fake FL; native fixture `testArmTrackSymbols`. Design and harvest evidence are in `docs/live-audio-capture.md`; the `CapturePolicy` break-even (live 8 s overhead, render 45 s + 1/8 real time, 120 s live cap, so about 42 s of music) is reasoned, not measured. Proposed MCP tools: `fl_audio_capture(inserts, startBar, endBar, tailBeats=0, name=null)` and `fl_section_measure(startBar, endBar, inserts=null, prefer="auto", tailBeats=0)` (the render branch is the only place a session closes). Remaining live checks: the symbols in `syms`, an arm/disarm round trip, dialog behaviour (`AutoCreateClip`/`AutoUnarm`, recording filter), then the capture pass.
+
+## 2026-09-14 — Live verification results (Parking Lot Moon batch)
+
+Ran 2026-09-14 17:50-18:25 against disposable copies `lc-001` .. `lc-008` under `FlMcp\Projects\Parking-Lot-Moon\live-checks\`
+on FL 26.1.3.5570 with stage `deploy-20260914-h` (deployed 17:42); the v015 master and the final-master files were never
+opened or written. The plan was `batch2-live-checklist.md`: 45 numbered checks in order (read-only, then mutating, then the
+shadow sweep, then the renders, each of which closes the session), every snippet one `fl_execute_python` body — 28 PASS,
+2 FAIL, 3 PARTIAL, 12 SKIPPED. The capture block (34-41) and its cross-check (44) were skipped in this run because the
+orchestrator verified the capture route separately (see "Live capture" below); 30 is GUI-attended, 31 needs an unlicensed
+cloud plugin, 32 was verified by the orchestrator. Evidence — `lc-001` .. `lc-008`, `live-checks-full.wav` and the five
+calibration WAVs — stays under `live-checks/`, snapshots under `Projects\snapshots\`.
+
+| Check | Entry | Result | Evidence |
+| --- | --- | --- | --- |
+| 3 | `fl_project_start` reports the template tempo | PASS | every resume `tempo 100`, `settle {stable true, 2015-2270 ms, 4-5 polls, firstTempo 100}`, no `ProjectUnsettled`; fresh template start reported its own real 140 |
+| 4 | Plugin shadow copies never pruned (first launch) | PASS | root held this host's three `.owner` dirs (pid 58264 = `fl_status.processId`) plus one 1-file probe dir; single non-repeating `could not delete ... FruityLink.Ui.Avalonia.dll` |
+| 5 | No automation inventory | PASS | `describe()` = 17 clips with decoded targets (`insert 4 slot 0 parameter 48`, `mixer_volume 24`, `mixer_volume 6` 488 points); `list()[0].target` is an `AutomationTarget` |
+| 6 | `AutomationTarget.plugin_parameter` argument order | PASS | all four construction forms equal -> `kind plugin_parameter, index 1, slot 0, parameter 556` |
+| 7 | "FL event 254 is truncated" | PASS | `fl.channels[1].get_state()` 17,640 bytes, head `0c00000001000000`; fresh build-4726 template variant 13,079 bytes, no error |
+| 8 | Sample channels "hosts no generator plugin" | PASS | ch 8 "it is a built-in Sampler channel (or an audio clip / layer) ... `replace_channel_sample`"; ch 21 "it is an automation clip (automates event 0x71008030)" |
+| 9 | `query_index(text=...)` misses single words | PASS | all six queries non-empty; `cotton` -> ["LD - Analog Crispy Cotton", "PD - Analog Soft Cotton"]; `soft` == `Soft` (5 hits) |
+| 10 | `parameters.page(limit=4240)` refused | PASS | `count 4240` in one request; message names the 512 host cap and `all()`/`list()`/`iter()` |
+| 11 | Serum 2 FX slots / unnamed enums | PARTIAL | describe correct (Sub Shape 199 "Sine" -> `meaning.value` "sine"; A WT Pos frame 1 of `S2 Tables/Analog/DM - OSCAR.wav`; `fx` Delay then Reverb), but the checklist snippet raises `TypeError: JSON object keys must be strings.` |
+| 12 | "^b^a" prefix on stock effect names | PASS | `name` "Low cut" / `raw_name` "^b^aLow cut" for six rows; `find("Wet level")` -> 12 |
+| 13 | `raw_value` is a float bit pattern | PASS | raw 1062303685 = 0x3F5178C5 -> `normalized` 0.8182337880134583, display "7000.0 Hz", no `struct` decoding |
+| 14 | `seek` drift + stale display after `seek` | PASS | `requestedTick 3072 -> positionTick 3072, settled true, reads 2` (zero drift); `display_at` -> "-12.00 dB", "-8.00 dB", "-4.00 dB" at bars 5 / 8.5 / 20 |
+| 15 | `set_verified` false when already at the value | FAIL | `{verified false, unchanged false, attempts 6, display "On"}` on a Fruity Delay 3 "Tempo sync" already On (`rawValue 1`, `normalized null`) |
+| 16 | `value=` vs `volume=` keywords | PASS | `{chan 9000, mixer 12800}`, no TypeError, raw `invoke` alias accepted too |
+| 17 | Volume curves, readback half | PASS | `{chan_raw 10240, mixer_top 16000, mixer_top_db 0.0}` (the clamp no longer pulls 16000 back to 12800) |
+| 18 | No send/route readback; send unity is 0.8 | PASS | before/mid/after sends as expected, `disconnect(0)` silent (no dialog, no stall), `routes 49`, `list_text()` "sends:" line agrees with `sends()` |
+| 19 | Template mixer inserts; naming past the count | PASS | "Insert 25 does not exist yet ... `ensure_inserts(25)`"; `added 1`, `after 25`, name "Vox"; template variant 16 -> 17 |
+| 20 | No channel delete (`retire` fallback) | PASS | `"(unused) (unused template)"`, `muted true`, `mixerTrack 0`, channel still present; the prefix is applied again (not idempotent) |
+| 21 | No Sampler channel-settings ops | PARTIAL | id 14 is the stretch-time field (1000 -> 1500 -> 1000, id 13 unmoved, `sample_offset` 0); the checklist snippet raises `TypeError: JSON object keys must be strings.` and the GUI knob was not eyeballed |
+| 22 | Fruity Delay 3: three "Distortion" | PASS | `LookupError` lists indices 18, 19, 20 and writes nothing; `"Distortion [19]"` -> idx 19; `all(unique=True)` lists the bracketed names |
+| 23 | Reeverb 2 / master-chain parameter scales | PASS | Pro-L 2 Gain "+12.00 dB", Reeverb 2 Low cut "302Hz" against a 300.0 Hz prediction, both `verified` |
+| 24 | GMS by parameter silent; `.gmsynth` loads | PASS | ch 56 "same instance; params 205->205; state record changed (4968 -> 4968 bytes, 231 differing bytes = 4.6%)" |
+| 25 | `add_patterns` ignores `length_tick` | PASS | `fixed 0`; both new clips read 3072 straight after `add_patterns`, no resize call |
+| 26 | `fl.clips.resize` forms | PASS | scalar then sequence form -> `(1536, 3072)` |
+| 27 | Deleting a note shrinks the pattern's clips | PASS | `deleted 1`, clip lengths stay 3072 (were 1536 before the fix) |
+| 28 | `AutomationPointSpec.tension` direction | PASS | on a clean insert: `ease_out (+0.5) [13168, 15510, 15926]`, `ease_in (-0.5) [74, 490, 2832]` of 16000 — +0.5 is a fast start; the insert-6 run was muddled by the existing bass duck |
+| 29 | Automation clips cannot loop/offset | PASS | duck over bars 9-25: 33 kick hits, 99 points (3 per hit), head 0.69 / 0.80 with tension 0.5 |
+| 30 | No `AutomationTarget` for mixer send levels | SKIPPED | GUI-attended by design |
+| 31 | Unlicensed Super VHS hang | SKIPPED | no unauthenticated cloud plugin available; deliberately provokes a 60 s timeout |
+| 32 | SDK venv has no numpy (presence half) | SKIPPED | verified by the orchestrator; the timing half is check 43 |
+| 33 | Plugin shadow copies never pruned (sweep) | PASS | every launch from 18:13 logs `shadow: pruned 4 stale plugin copies (410 MB)`; the undeletable probe dir is a different one each launch and is always gone after the next sweep |
+| 34 | Arm gate / native symbols | SKIPPED | capture block, skipped by instruction; covered by the orchestrator (symbols resolved) |
+| 35 | Arm round trip | SKIPPED | capture block; covered by the orchestrator |
+| 36 | Recorded folder + disk-recording settings | SKIPPED | capture block; covered by the orchestrator |
+| 37 | Transport record pass | SKIPPED | capture block; covered by the orchestrator |
+| 38 | Recorded file names / provenance | SKIPPED | capture block; covered by the orchestrator |
+| 39 | Slice alignment | SKIPPED | capture block; covered by the orchestrator |
+| 40 | End-to-end `fl.audio.capture` | SKIPPED | capture block; covered by the orchestrator |
+| 41 | `fl.audio.decide` / `measure_section` policy | SKIPPED | capture block; covered by the orchestrator |
+| 42 | Full render died mid-way | PASS | `seconds 259.2` vs `expectedSeconds 259.2`, one attempt `outcome ok` in 105.6 s, no warnings, 99,533,084 bytes; the retry path cannot be provoked deliberately |
+| 43 | numpy timing on the full render | PASS | `scan_bars(bpm=100)` over 259.2 s of audio in 33.97 s (108 bars) — seconds, not minutes |
+| 44 | Capture cross-check | SKIPPED | depends on `r.measurements` from check 40 |
+| 45 | Volume-curve calibration (renders) | FAIL | measured drops 12.54 dB (channel 12800 -> 6400), 12.70 dB (mixer 12800 -> 6400), 14.21 dB (mixer 12800 -> 5769) against the model's 17.4 / 17.4 / 20.0 dB |
+| 46 | Describe / compare / samples (new capability) | PASS | 17 lines in 2.77 s: 108.00 bars, 2.614 s tail, `wide`, structure matches the recorded master; `compare_audio` vs the final master `rms +3.4 dB, loudness +3.3 LU, -[dark]` (this render carries check 23's +12 dB); 21 samples 14.97 s cold / 0.05 s warm |
+| 47 | Optional renders | PARTIAL | the GMS "Pad check" chord is clearly audible (-21.8 dBFS RMS at unity, -36.0 dBFS through the -20 dB insert, against the -58 dB fresh-GMS baseline); the bars 9-25 bass-duck render was not done |
+
+### Failures and follow-ups
+
+1. **Check 15 — `Parameters.set_verified` on a slot that already holds the value.** Exact result
+   `{"verified": false, "unchanged": false, "attempts": 6, "display": "On"}` for `fl.mixer[4].effects[3].parameters.set_verified("Tempo sync", 1.0)`
+   (Fruity Delay 3, already On); the parameter row reads `rawValue: 1, displayValue: "On", normalized: null`. Component at
+   fault: SDK Python `python/src/fruitylink/plugins.py` — stock FL effects report the raw value as a plain integer and
+   `normalized_from_raw(1)` decodes 1 as a float32 denormal and returns `None`, so `unchanged` never becomes True and
+   `_write_applied` is False; the six 50 ms readbacks then all fail. **Fix in progress** (stage i): treat a non-float-bit
+   raw value that is unchanged with an unchanged display as "already in place", or decode small integer raws on the native
+   scale.
+2. **Check 45 — the fader dB curve is wrong by 5-6 dB.** `FADER_EXPONENT = 2.89` in `python/src/fruitylink/levels.py`
+   predicts a 17.4 dB drop for halving a channel or mixer volume; the isolated renders measure 12.54 dB (channel
+   12800 -> 6400), 12.70 dB (mixer 12800 -> 6400) and 14.21 dB (mixer 12800 -> 5769, model 20.0 dB) — solved exponents
+   2.083 / 2.109 / 2.053, i.e. about 12.6 dB per halving and an exponent near 2.1, not 2.89. Component at fault: SDK Python
+   `fruitylink.levels` (and everything derived from it: `mixer_volume_to_db/from_db`, `channel_volume_to_db/from_db`,
+   `fader_db`, `volume_table`). **Fix in progress** (stage i): re-set the exponent to about 2.05-2.1 and re-derive
+   `FADER_MAX_DB` (16000 then reads about +3.9 dB, not the +5.6 dB the FL fader hint shows — the hint and the audio
+   disagree and the audio is what the SDK promises); `volume_db` keeps 0 dB at position 0.8 (10240 / 12800) either way.
+   Evidence: `live-checks/cal-12800b.wav`, `cal-6400.wav`, `cal-mix-12800.wav`, `cal-mix-6400.wav`.
+3. **Checks 11 and 21 (PARTIAL) — the embedded worker rejects `result` dicts with non-string keys.** Exact error:
+   `TypeError: JSON object keys must be strings.` raised from `fruitylink/values.py` line 42 (`to_json`, called by
+   `worker.py _safe_result`). `to_json` stringifies keys on the very next line, so the guard is stricter than the
+   conversion. Components at fault: SDK Python `python/src/fruitylink/values.py`, and
+   `extensions/serum-support/src/fruitylink_serum/describe.py`, whose `explain_parameters` returns `meaning.values` keyed by
+   floats. Both entries' own fixes verified when the keys were stringified by hand (check 11's describe output is correct;
+   check 21's control ids read and write consistently, id 14 = stretch time), so only the return path is broken.
+   **Fix in progress** (stage i): let `to_json` stringify int/float keys, and key the Serum enum table by strings.
+4. **Check 47 (PARTIAL)** — not a defect: the GMS half passed through the calibration renders; the optional bars 9-25
+   bass-duck render was simply not run. No follow-up beyond re-running it if the duck shape is ever questioned.
+
+### Live capture
+
+Verified by the orchestrator in the same window, outside the numbered checks (block 34-41 was skipped in the check run to
+avoid two sessions arming the same inserts). The harvested native symbols `FLmx_SetTrackArmed` / `MixerTrackArmedOffset`
+resolve in the stage-h bridge, and `fl.audio.capture` records the master and individual inserts end to end. Cross-check:
+the live-captured master over bars 33-36 measured **-13.83 dBFS RMS / -1.0 dBFS peak** against the offline master's
+**-13.8 LUFS / -1.0 dBTP** — the two routes agree.
+
+FL prerequisites (must be set by hand before any capture; the SDK now names both in the zero-file error):
+
+- Record button, right-click > **Recording filter must include Audio**. Registry
+  `HKCU\Software\Image-Line\FL Studio 26\General\FruityLoopsMainForm` value `RecordingFilter2` read 3 here, which is Audio
+  **off**, and a pass then writes no files at all.
+- Mixer menu > **Disk recording > Auto-create audio clip off** for the pass (`AutoCreateClip` / `AutoUnarm` are not read or
+  written by the SDK).
+
+FL quirks found and worked around in the SDK:
+
+- A **solo armed insert records only after a second arm-state change**: arming one insert alone produces no file until
+  another insert's arm state is toggled. `Audio._arm_refresh` now arms and disarms one non-requested insert after the
+  requested set is armed, verifies both readbacks, and appends an `"Arm-refresh workaround applied: insert N ..."` warning;
+  `arm_refresh=False` disables it.
+- **Every recording adds a sample channel** to the rack. New clips are deleted after the pass and new channels retired
+  (`CaptureResult.deleted_clips` / `retired_channels`), but the channels themselves cannot be removed — see the new entry
+  below.
+
+### New friction
+
+### A solo armed mixer insert records nothing until a second arm-state change
+- Status: fixed-unverified (SDK: `fruitylink.capture.Audio._arm_refresh` arms then disarms one non-requested insert after the requested set is armed, verifies both readbacks (`CaptureError` if FL refuses) and reports an `"Arm-refresh workaround applied: insert N (name) ..."` warning; `arm_refresh=False` opts out; a `"skipped"` warning says so when no candidate insert exists; modelled by the fake FL in `python/tests/test_capture.py`)
+- Seen: 2026-09-14, live capture run (Parking Lot Moon disposable copy, FL 26.1.3.5570, stage deploy-20260914-h)
+- Call: `fl.mixer[5].armed = True` then a record + play pass over a bar range (`fl.audio.capture([5], 33, 40)`)
+- Expected / actual: one `<project>_<n>_<track>.wav` per armed insert; actual no file at all for a single armed insert, while the same pass with two or more inserts armed writes every file. FL appears to latch the recording set at the last arm-state change and to exclude the insert being changed, so a lone arm leaves the set empty; the readback still reports `armed True`, so nothing in the SDK could see the problem before the pass timed out with zero files.
+- Workaround: change a second insert's arm state (arm then disarm any other insert) after arming the one you want; this is what the SDK now does automatically.
+- Evidence: `S\batch2-report-live-capture.md` "Live findings and fixes" item 1; `docs/live-audio-capture.md` "Prerequisites in FL" and step 6b
+
+### Every disk recording adds a sample channel that cannot be deleted
+- Status: open (FL limitation; no channel-delete call exists in the engine or in FL's own scripting API — see "No channel delete". The capture layer deletes the new clips and retires the new channels, reporting them as `CaptureResult.deleted_clips` / `retired_channels` with a warning naming the retired indices; `cleanup=False` skips it)
+- Seen: 2026-09-14, live capture run (Parking Lot Moon disposable copy)
+- Call: `fl.audio.capture([5, 0], 33, 40, tail_beats=2)`
+- Expected / actual: a capture that leaves the project as it found it; actual FL adds one sample channel per recorded insert (plus an audio clip each, which can be deleted). The clips go away, but the channels can only be muted, routed to Master and renamed `"(unused) ..."`, so a project accumulates retired channels at one per recorded insert per pass. The MCP `fl_audio_capture` description still says "the project is not edited" and should be corrected to surface `retired_channels` / `deleted_clips` / `removed_originals`.
+- Workaround: `fl.channels.retire(index)` (what the capture layer does), and capture in a disposable copy when the litter matters; budget one retired channel per insert per pass.
+- Evidence: `S\batch2-report-live-capture.md` "Live findings and fixes" item 3 and the MCP contract check (b)
+
+### FL re-applies automation-clip values over a saved fader write after save/reopen
+- Status: docs (a fader that an automation clip targets cannot be pinned by a plain write across a save/reopen; worth a line in the automation docs next to `AutomationTarget.mixer_volume`)
+- Seen: 2026-09-14, Parking Lot Moon live verification (lc-002 write, read back after the check-45 render/resume; surfaced while collecting the check-46 render evidence)
+- Call: `fl.mixer[25].volume_db = -20.0` (raw 5769), `fl_project_render(...)`, then `fl_project_start(... sourceProjectPath=<-full.flp>)` and `fl.mixer[25].volume`
+- Expected / actual: 5769 on reopen; actual 15926 — the last value of the "tension2 ease_out" clip created by check 28, which targets `mixer_volume(25)`. The write itself succeeds and reads back correctly in the same session; the reopen re-applies the automation clip's value at the playhead. The related render observation: a section render past the song end reports `cut_clips 0, deleted_clips 116` because whole-song automation clips end before the range and are deleted rather than cut, so each automation target's *current* value at save time is what the trimmed render hears. `cal-12800.wav` was discarded for exactly this reason.
+- Workaround: write the fader on an insert no automation clip targets (check 45 was redone on a fresh "Cal" insert 26), or flatten/delete the clip first, or set the value through the clip instead of the fader.
+- Evidence: `live-checks/cal-12800.wav` (discarded) vs `cal-12800b.wav`; `S\batch2-live-results.md` "Observations (not failures)"
