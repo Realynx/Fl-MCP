@@ -33,16 +33,30 @@ public sealed class McpIntegrationTests
         var measure = Assert.Single(tools, tool => tool.Name == "fl_section_measure");
         foreach (var description in new[] { capture.Description, measure.Description })
         {
-            Assert.Contains("Recording filter", description);
-            Assert.Contains("Auto-create audio clip", description);
+            // The live route configures FL itself now, so the descriptions must say so rather than send the
+            // caller to FL's UI (the old text named the Recording filter and Auto-create audio clip as chores).
+            Assert.Contains("recording filter", description);
+            Assert.Contains("record button", description);
             Assert.Contains("INCLUSIVE", description);
         }
+        Assert.Contains("No FL setup is needed", capture.Description);
+        Assert.Contains("ensureRecordingFilter=false", capture.Description);
         Assert.DoesNotContain("project is not edited", capture.Description);
         Assert.Contains("retired_channels", capture.Description);
+        // A retired channel left pointing at a deleted recording hangs FL's renderer, so both descriptions say
+        // the channels are repointed at the placeholder, and that a stem is pre-fader (live 2026-09-17).
+        Assert.Contains("repointed_channels", capture.Description);
+        Assert.Contains("PRE-fader", capture.Description);
+        foreach (var description in new[] { capture.Description, measure.Description })
+        {
+            Assert.Contains("repointed", description);
+            Assert.Contains("fader", description);
+        }
         Assert.Contains("sdkMethod", measure.Description);
         var properties = capture.JsonSchema.GetProperty("properties");
         Assert.True(properties.TryGetProperty("armRefresh", out _));
         Assert.True(properties.TryGetProperty("keepOriginals", out _));
+        Assert.True(properties.TryGetProperty("ensureRecordingFilter", out _));
         Assert.True(properties.TryGetProperty("inserts", out _), capture.JsonSchema.GetRawText());
         Assert.True(properties.TryGetProperty("startBar", out _));
         Assert.Contains("startBar", capture.JsonSchema.GetProperty("required").EnumerateArray().Select(item => item.GetString()));

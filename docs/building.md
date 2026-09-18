@@ -12,9 +12,17 @@ Use the SDK commit recorded in the repository's `SDK_REF` file for a reproducibl
 
 ```powershell
 ./scripts/codefactor-check.ps1 -FruityLinkSdkRoot C:\source\FL-Automation
-uv run --directory C:\source\FL-Automation\python --locked python -m build
-./scripts/package.ps1 -FruityLinkSdkRoot C:\source\FL-Automation -PythonWheel C:\source\FL-Automation\python\dist\fruitylink_python-0.2.0-py3-none-any.whl
+./scripts/package.ps1 -FruityLinkSdkRoot C:\source\FL-Automation
 ```
+
+`package.ps1` builds `fruitylink_python-0.2.0-py3-none-any.whl` from `<sdk>/python` itself
+(`python -m pip wheel . --no-deps`) and then runs `<sdk>/scripts/check_installed_wheels.py` over the
+staged copy, failing the package when any `fruitylink/*` file differs from or is missing against
+`<sdk>/python/src/fruitylink`. The wheel's name and version string are identical for every 0.2.0
+build, so a wheel built from older sources installs, imports and reports 0.2.0 while silently
+dropping whatever newer sources added, and nothing downstream can detect it. `-UsePrebuiltWheel
+-PythonWheel <path>` stages a reviewed wheel instead of building one; it is content-verified the same
+way. A `python` on PATH is required for both steps.
 
 The raw developer package contains separate `server`, `plugin/fl-mcp`, and `python` directories. The FruityLink installer adds the pinned official CPython runtime and installs the plugin, companion, wheel, and runtime together. Use that installer for an offline end-user installation.
 

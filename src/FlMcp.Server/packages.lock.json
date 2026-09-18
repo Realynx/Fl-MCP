@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows7.0": {
+      "FruityLink.Core": {
+        "type": "Direct",
+        "requested": "[0.2.0, )",
+        "resolved": "0.2.0",
+        "contentHash": "HdocQl+7Tfa79C9kItW9jPTcL2tC3TZAxlFlhpHDcLL/8HPSfb2RhgVRaWR0q4fJ1Y0e5WoqerOg1ER7N7mcng=="
+      },
       "Microsoft.Extensions.Hosting": {
         "type": "Direct",
         "requested": "[10.0.0, )",

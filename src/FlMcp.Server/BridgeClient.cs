@@ -26,16 +26,35 @@ public sealed class BridgeClient : IBridgeClient
     private static async Task<JsonElement> CallCoreAsync(int processId, string token, string? leaseToken, string operation, object arguments, int timeoutSeconds, CancellationToken ct)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds + 2));
+        var budget = TimeSpan.FromSeconds(timeoutSeconds + 2);
+        deadline.CancelAfter(budget);
+        try
+        {
+            return await ExchangeAsync(processId, token, leaseToken, operation, arguments, timeoutSeconds, deadline.Token).ConfigureAwait(false);
+        }
+        // The server's OWN deadline, not the caller's: a bare OperationCanceledException here says nothing
+        // about what timed out, so name the operation and the budget instead (live: fl_plugins_list surfaced
+        // as the MCP SDK's detail-free "An error occurred invoking ..." because nothing converted this).
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"The FL bridge did not answer '{operation}' within {budget.TotalSeconds:0.#} s. " +
+                "FL may be busy, showing a modal dialog, or the operation is genuinely slower than this tool's budget; " +
+                "check FL's window, confirm the project state and retry. The request was not retried automatically.");
+        }
+    }
+
+    private static async Task<JsonElement> ExchangeAsync(int processId, string token, string? leaseToken, string operation,
+        object arguments, int timeoutSeconds, CancellationToken deadline)
+    {
         await using var pipe = new NamedPipeClientStream(".", PipeProtocol.Name(processId), PipeDirection.InOut,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        await pipe.ConnectAsync(deadline.Token).ConfigureAwait(false);
+        await pipe.ConnectAsync(deadline).ConfigureAwait(false);
         if (leaseToken is not null || operation == "attach")
         {
             if (PipePeerIdentity.GetServerProcessId(pipe) != processId)
                 throw new IOException("The bridge belongs to another process; attachment was refused.");
         }
-        var response = await SendAndReadAsync(pipe, token, leaseToken, operation, arguments, timeoutSeconds, deadline.Token).ConfigureAwait(false);
+        var response = await SendAndReadAsync(pipe, token, leaseToken, operation, arguments, timeoutSeconds, deadline).ConfigureAwait(false);
         if (response.Error is not null) throw new InvalidOperationException(response.Error);
         return response.Result ?? throw new InvalidDataException("Bridge returned no result.");
     }

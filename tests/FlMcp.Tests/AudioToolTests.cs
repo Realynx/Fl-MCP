@@ -135,14 +135,17 @@ public sealed class AudioToolTests
     public void CaptureScriptPassesInsertsBarsTailAndName()
     {
         var script = AudioCaptureRequest.From(Json("[5, 0]"), 33, 40, 2, "serum check").PythonScript();
-        Assert.Contains("_captured = fl.audio.capture([5, 0], 33, 40, tail_beats=2, name=\"serum check\", arm_refresh=True, keep_originals=False)", script);
+        Assert.Contains("_captured = fl.audio.capture([5, 0], 33, 40, tail_beats=2, name=\"serum check\", arm_refresh=True, keep_originals=False, ensure_recording_filter=True)", script);
         Assert.Contains("result = _captured.to_dict()", script);
         Assert.Contains("describe_audio(_path, bpm=_captured.plan.bpm, ppq=_captured.plan.ppq, start_bar=33, detail=\"brief\").text", script);
         Assert.Contains("result[\"python_seconds\"]", script);
         var master = AudioCaptureRequest.From(null, 1, 4, 0, null).PythonScript();
-        Assert.Contains("fl.audio.capture(\"master\", 1, 4, tail_beats=0, name=None, arm_refresh=True, keep_originals=False)", master);
+        Assert.Contains("fl.audio.capture(\"master\", 1, 4, tail_beats=0, name=None, arm_refresh=True, keep_originals=False, ensure_recording_filter=True)", master);
         var flags = AudioCaptureRequest.From(null, 1, 4, 0, "take", armRefresh: false, keepOriginals: true).PythonScript();
-        Assert.Contains("fl.audio.capture(\"master\", 1, 4, tail_beats=0, name=\"take\", arm_refresh=False, keep_originals=True)", flags);
+        Assert.Contains("fl.audio.capture(\"master\", 1, 4, tail_beats=0, name=\"take\", arm_refresh=False, keep_originals=True, ensure_recording_filter=True)", flags);
+        // Opting out of the recording-filter fix is how the old zero-file failure is reproduced.
+        var raw = AudioCaptureRequest.From(null, 1, 4, 0, null, ensureRecordingFilter: false).PythonScript();
+        Assert.Contains("keep_originals=False, ensure_recording_filter=False)", raw);
     }
 
     [Fact]
@@ -187,14 +190,14 @@ public sealed class AudioToolTests
         TestFiles.WriteWave(fixture.Files.PathFor("mix.wav"));
         var describe = await Assert.ThrowsAsync<InvalidOperationException>(() => session.DescribeAudioAsync("mix.wav", null, null, null, CancellationToken.None));
         Assert.Contains("No FL project is connected", describe.Message);
-        var capture = await Assert.ThrowsAsync<InvalidOperationException>(() => session.CaptureAudioAsync(null, 1, 4, 0, null, true, false, CancellationToken.None));
+        var capture = await Assert.ThrowsAsync<InvalidOperationException>(() => session.CaptureAudioAsync(null, 1, 4, 0, null, true, false, true, CancellationToken.None));
         Assert.Contains("No FL project is connected", capture.Message);
         var measure = await Assert.ThrowsAsync<InvalidOperationException>(() => session.MeasureSectionAsync(1, 4, null, "auto", 0, 600, CancellationToken.None));
         Assert.Contains("No FL project is connected", measure.Message);
         Assert.DoesNotContain("python_execute", fixture.Bridge.Calls);
         // Argument problems are reported before the session is consulted.
         await Assert.ThrowsAsync<ArgumentException>(() => session.DescribeAudioAsync("mix.wav", 2, null, null, CancellationToken.None));
-        await Assert.ThrowsAsync<ArgumentException>(() => session.CaptureAudioAsync(Json("[]"), 1, 4, 0, null, true, false, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.CaptureAudioAsync(Json("[]"), 1, 4, 0, null, true, false, true, CancellationToken.None));
         await Assert.ThrowsAsync<ArgumentException>(() => session.MeasureSectionAsync(1, 4, null, "quick", 0, 600, CancellationToken.None));
     }
 
@@ -277,9 +280,9 @@ public sealed class AudioToolTests
             }));
         };
 
-        var result = await session.CaptureAudioAsync(Json("[5, 0]"), 1, 108, 2, "take", false, false, CancellationToken.None);
+        var result = await session.CaptureAudioAsync(Json("[5, 0]"), 1, 108, 2, "take", false, false, true, CancellationToken.None);
 
-        Assert.Contains("fl.audio.capture([5, 0], 1, 108, tail_beats=2, name=\"take\", arm_refresh=False, keep_originals=False)", request!.Code);
+        Assert.Contains("fl.audio.capture([5, 0], 1, 108, tail_beats=2, name=\"take\", arm_refresh=False, keep_originals=False, ensure_recording_filter=True)", request!.Code);
         Assert.Contains("describe_audio(_path", request.Code);
         Assert.Equal(307, request.TimeoutSeconds); // 434 beats at 120 BPM = 217 s, plus 90 s
         Assert.Equal(307, result.GetProperty("timeoutSeconds").GetInt32());
@@ -309,7 +312,7 @@ public sealed class AudioToolTests
         await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
         const string refused = "CaptureError: The native mixer record-arm routines (FLmx_SetTrackArmed, MixerTrackArmedOffset) are not resolved on this FL build.";
         fixture.Bridge.OnPython = (_, _) => Task.FromResult(Failed(refused));
-        var error = await Assert.ThrowsAsync<SdkScriptException>(() => session.CaptureAudioAsync(null, 33, 40, 0, null, true, false, CancellationToken.None));
+        var error = await Assert.ThrowsAsync<SdkScriptException>(() => session.CaptureAudioAsync(null, 33, 40, 0, null, true, false, true, CancellationToken.None));
         Assert.Contains(refused, error.Message);
         Assert.StartsWith("fl_audio_capture failed in the embedded SDK", error.Message);
         Assert.False(fixture.Processes.Started[0].Process.Terminated);

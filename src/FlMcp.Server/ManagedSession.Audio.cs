@@ -90,20 +90,20 @@ public sealed record AudioDescribeRequest(string? WavPath, int? Channel, string 
 
 /// <summary>Validated fl_audio_capture arguments. <see cref="Inserts"/> null means the master only; <see cref="EndBar"/> is inclusive.</summary>
 public sealed partial record AudioCaptureRequest(int[]? Inserts, int StartBar, int EndBar, double TailBeats, string? Name,
-    bool ArmRefresh = true, bool KeepOriginals = false)
+    bool ArmRefresh = true, bool KeepOriginals = false, bool EnsureRecordingFilter = true)
 {
     public const string InsertsUsage = "inserts must be \"master\" (or omitted) or an array of mixer track indices 0..500 (0 = Master; " +
         "ordinary inserts as listed by fl.mixer.list()).";
 
     public static AudioCaptureRequest From(JsonElement? inserts, int startBar, int endBar, double tailBeats, string? name,
-        bool armRefresh = true, bool keepOriginals = false)
+        bool armRefresh = true, bool keepOriginals = false, bool ensureRecordingFilter = true)
     {
         new RenderRange(startBar, endBar, false, tailBeats).Validate();
         if (name is not null && !CaptureName().IsMatch(name))
             throw new ArgumentException("name must be 1..80 characters of letters, digits, space, dot, underscore or dash; the recordings are copied as <name>-<track>.wav beside FL's originals.");
         if (keepOriginals && name is null)
             throw new ArgumentException("keepOriginals only applies with name: without a name FL's auto-named recordings are the result and are always kept.");
-        return new(ParseInserts(inserts), startBar, endBar, tailBeats, name, armRefresh, keepOriginals);
+        return new(ParseInserts(inserts), startBar, endBar, tailBeats, name, armRefresh, keepOriginals, ensureRecordingFilter);
     }
 
     /// <summary>"master"/null/omitted -> null; a number or an array of numbers -> distinct tracks 0..500 in call order.</summary>
@@ -147,7 +147,8 @@ public sealed partial record AudioCaptureRequest(int[]? Inserts, int StartBar, i
     public string PythonScript() =>
         AudioScripts.Prelude +
         $"_captured = fl.audio.capture({PythonInserts(Inserts, "\"master\"")}, {StartBar}, {EndBar}, tail_beats={AudioScripts.Number(TailBeats)}, " +
-        $"name={(Name is null ? "None" : AudioScripts.Literal(Name))}, arm_refresh={Flag(ArmRefresh)}, keep_originals={Flag(KeepOriginals)})\n" +
+        $"name={(Name is null ? "None" : AudioScripts.Literal(Name))}, arm_refresh={Flag(ArmRefresh)}, keep_originals={Flag(KeepOriginals)}, " +
+        $"ensure_recording_filter={Flag(EnsureRecordingFilter)})\n" +
         "result = _captured.to_dict()\n" +
         AudioScripts.Descriptions("result", "((_file.track, _file.path) for _file in _captured.files)", StartBar, "_captured.plan.bpm", "_captured.plan.ppq") +
         AudioScripts.Elapsed;
@@ -236,9 +237,9 @@ public sealed partial class ManagedSession
 
     /// <summary>fl_audio_capture: FL's own disk recording of the inserts over a bar span, measured and briefly described.</summary>
     public async Task<JsonElement> CaptureAudioAsync(JsonElement? inserts, int startBar, int endBar, double tailBeats, string? name,
-        bool armRefresh, bool keepOriginals, CancellationToken ct)
+        bool armRefresh, bool keepOriginals, bool ensureRecordingFilter, CancellationToken ct)
     {
-        var request = AudioCaptureRequest.From(inserts, startBar, endBar, tailBeats, name, armRefresh, keepOriginals);
+        var request = AudioCaptureRequest.From(inserts, startBar, endBar, tailBeats, name, armRefresh, keepOriginals, ensureRecordingFilter);
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {

@@ -70,7 +70,7 @@ Notes and clips append. If a request fails or its response is lost, inspect the 
 | `fl_markers_list` | None | Lists song time markers with zero-based indices and tick positions. FL extends renders and the play range to the last marker. |
 | `fl_marker_delete` | `index` | Deletes one marker by its zero-based index. Remove trailing markers to shorten an audition render; list again afterwards because indices shift. |
 | `fl_channel_route` | `channel`, `track` | Routes a zero-based generator to Master (0) or an active ordinary mixer insert. |
-| `fl_effect_add` | `track`, `slot`, `name` | Loads an exact installed effect name into slot 0–9, replacing any existing effect in that slot. |
+| `fl_effect_add` | `track`, `slot`, `name` | Loads an exact installed effect name into slot 0–9, replacing any existing effect in that slot. Returns `verification` — the effect the slot reports afterwards. A cold first plugin load is guarded for 20 s and reports `loaded after N ms` rather than failing. |
 | `fl_parameter_set` | `channelOrTrack`, `slot`, `parameter`, `value` | Sets a discovered parameter to normalized 0–1. `slot=-1` addresses a generator; 0–9 addresses a mixer effect. |
 
 Discover active mixer indices with Python `fl.mixer.list()`. Master is 0; active ordinary inserts are within 1–500. Current/dormant slots are refused. Structural insertion can shift indices: query again before routing or editing effects.

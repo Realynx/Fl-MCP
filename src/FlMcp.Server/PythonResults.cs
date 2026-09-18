@@ -9,8 +9,9 @@ namespace FlMcp.Server;
 /// Bounds <c>fl_execute_python</c> responses for the MCP client. The plugin pipe carries up to 1 MiB, but MCP
 /// clients cap what a tool result may contain (Claude Code refuses results over roughly 25k tokens, about
 /// 80-100 KB of JSON). A response over the limit is written in full to <c>&lt;workspace&gt;/results</c> and replaced
-/// by an envelope with the head and tail of that file, its size and its path, so an agent can read the rest
-/// with a file tool instead of losing it.
+/// by an envelope with a short head and tail excerpt of that file (at most <see cref="MaximumHeadBytes"/> and
+/// <see cref="MaximumTailBytes"/> bytes: enough to recognise the response, not a second copy of it), its size
+/// and its path, so an agent can read the rest with a file tool instead of losing it.
 /// </summary>
 public static class PythonResults
 {
@@ -20,6 +21,14 @@ public static class PythonResults
 
     /// <summary>Smallest accepted limit; the envelope itself needs room for excerpts, the path and the note.</summary>
     public const int MinimumLimitBytes = 4 * 1024;
+
+    /// <summary>Hard caps for the envelope's excerpts. They exist to show WHICH response was saved (the first keys,
+    /// the closing keys), not to carry the data: a fraction of the 64 KiB default limit put several KB of the
+    /// oversized blob back into the context the envelope was meant to protect (live 2026-09-17).</summary>
+    public const int MaximumHeadBytes = 512;
+
+    /// <inheritdoc cref="MaximumHeadBytes"/>
+    public const int MaximumTailBytes = 256;
 
     public const string LimitVariable = "FL_MCP_PYTHON_RESPONSE_LIMIT";
     public const string ResultsDirectory = "results";
@@ -50,8 +59,8 @@ public static class PythonResults
             ["totalBytes"] = totalBytes,
             ["limitBytes"] = limitBytes,
             ["path"] = path,
-            ["head"] = Head(text, limitBytes / 4),
-            ["tail"] = Tail(text, limitBytes / 8),
+            ["head"] = Head(text, Math.Min(limitBytes / 4, MaximumHeadBytes)),
+            ["tail"] = Tail(text, Math.Min(limitBytes / 8, MaximumTailBytes)),
             ["note"] = $"The response is {totalBytes} bytes, over the {limitBytes}-byte {LimitVariable}. " +
                        (ok is null ? "The complete JSON response {ok,result,stdout,stderr,error?,traceback?} was saved to 'path'; " +
                                      "read it with a file tool, or return a smaller result and print less."
@@ -63,6 +72,27 @@ public static class PythonResults
             if (response.TryGetProperty(flag, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False)
                 envelope[flag] = value.GetBoolean();
         return Messages.Element(envelope);
+    }
+
+    /// <summary>Appends one note to the response's <c>warnings</c> array, creating the array when absent.
+    /// For conditions the server CORRECTED rather than refused (a clamped deadline), so the caller still gets
+    /// the run and also learns what changed. A response that is not a JSON object is returned untouched.</summary>
+    public static JsonElement WithWarning(JsonElement response, string warning)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(warning);
+        if (response.ValueKind != JsonValueKind.Object) return response;
+        var fields = new Dictionary<string, object?>(StringComparer.Ordinal);
+        var warnings = new List<object?>();
+        foreach (var property in response.EnumerateObject())
+        {
+            if (property.NameEquals("warnings") && property.Value.ValueKind == JsonValueKind.Array)
+                warnings.AddRange(property.Value.EnumerateArray().Select(item => (object?)item.Clone()));
+            else
+                fields[property.Name] = property.Value.Clone();
+        }
+        warnings.Add(warning);
+        fields["warnings"] = warnings;
+        return Messages.Element(fields);
     }
 
     private static string Head(string text, int byteBudget)

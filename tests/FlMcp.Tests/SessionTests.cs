@@ -206,6 +206,71 @@ public sealed class SessionTests
         Assert.Equal(24, Artifacts.VerifyProject(fixture.Files.PathFor("finished.flp")));
     }
 
+    /// <summary>Live finding 2026-09-18: fl_execute_python(timeoutSeconds=400) was refused with
+    /// "Timeout must be 1..300 seconds", losing a whole script over a number the server can correct.
+    /// It is clamped now, and the response says so in warnings.</summary>
+    [Theory]
+    [InlineData(400, 300)]
+    [InlineData(0, 1)]
+    [InlineData(-5, 1)]
+    public async Task AnOutOfRangePythonDeadlineIsClampedAndReportedInWarnings(int asked, int used)
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        var seen = 0;
+        fixture.Bridge.OnPython = (request, _) =>
+        {
+            seen = request.TimeoutSeconds;
+            return Task.FromResult(Messages.Element(new { ok = true, result = 7 }));
+        };
+
+        var response = await session.ExecutePythonAsync("result = 7", asked, CancellationToken.None);
+
+        Assert.Equal(used, seen);
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(7, response.GetProperty("result").GetInt32());
+        var warning = Assert.Single(response.GetProperty("warnings").EnumerateArray()).GetString()!;
+        Assert.StartsWith("TimeoutClamped:", warning);
+        Assert.Contains(asked.ToString(), warning);
+        Assert.Contains($"{used} s deadline", warning);
+    }
+
+    [Fact]
+    public async Task AnInRangePythonDeadlineIsUsedVerbatimAndAddsNoWarning()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = fixture.Session();
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        var seen = 0;
+        fixture.Bridge.OnPython = (request, _) =>
+        {
+            seen = request.TimeoutSeconds;
+            return Task.FromResult(Messages.Element(new { ok = true, result = 7 }));
+        };
+
+        var response = await session.ExecutePythonAsync("result = 7", ManagedSession.PythonTimeoutCap, CancellationToken.None);
+
+        Assert.Equal(ManagedSession.PythonTimeoutCap, seen);
+        Assert.False(response.TryGetProperty("warnings", out _));
+    }
+
+    [Fact]
+    public async Task AClampedDeadlineStillWarnsWhenTheResponseIsOversized()
+    {
+        using var fixture = new SessionFixture();
+        await using var session = new ManagedSession(fixture.Settings with { PythonResponseLimitBytes = PythonResults.MinimumLimitBytes },
+            fixture.Processes, fixture.Bridge);
+        await session.LaunchAsync("fresh.flp", 1, CancellationToken.None);
+        fixture.Bridge.OnPython = (_, _) => Task.FromResult(Messages.Element(new { ok = true, result = new string('r', 20_000) }));
+
+        var envelope = await session.ExecutePythonAsync("result = 'r' * 20000", 400, CancellationToken.None);
+
+        // The note has to survive the oversize envelope, not end up inside the file the envelope points at.
+        Assert.True(envelope.GetProperty("oversized").GetBoolean());
+        Assert.StartsWith("TimeoutClamped:", Assert.Single(envelope.GetProperty("warnings").EnumerateArray()).GetString());
+    }
+
     [Fact]
     public async Task EmbeddedExecutionRoutesOneBridgeRequestAndBlocksConcurrentEdits()
     {

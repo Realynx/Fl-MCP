@@ -51,9 +51,23 @@ public sealed class PythonResultTests
         var tail = envelope.GetProperty("tail").GetString()!;
         Assert.StartsWith(head, text);
         Assert.EndsWith(tail, text);
-        Assert.InRange(Encoding.UTF8.GetByteCount(head), limit / 4 - 4, limit / 4);
-        Assert.InRange(Encoding.UTF8.GetByteCount(tail), limit / 8 - 4, limit / 8);
+        Assert.InRange(Encoding.UTF8.GetByteCount(head), PythonResults.MaximumHeadBytes - 4, PythonResults.MaximumHeadBytes);
+        Assert.InRange(Encoding.UTF8.GetByteCount(tail), PythonResults.MaximumTailBytes - 4, PythonResults.MaximumTailBytes);
         Assert.True(Encoding.UTF8.GetByteCount(envelope.GetRawText()) <= limit, "The envelope itself must fit the limit.");
+    }
+
+    [Fact]
+    public void ExcerptsAreCappedAtAFewHundredBytesWhateverTheLimitIs()
+    {
+        // Live 2026-09-17: with the default 64 KiB limit the envelope carried 16 KiB of head and 8 KiB of tail,
+        // i.e. several KB of the very blob it was saving to a file. The excerpts only have to identify it.
+        using var files = new TestFiles();
+        var response = Messages.Element(new { ok = true, result = new string('x', 300_000) });
+        var envelope = PythonResults.Bound(response, PythonResults.DefaultLimitBytes, new WorkspacePaths(files.Root), Stamp);
+        Assert.True(envelope.GetProperty("totalBytes").GetInt32() > PythonResults.DefaultLimitBytes);
+        Assert.InRange(Encoding.UTF8.GetByteCount(envelope.GetProperty("head").GetString()!), 1, PythonResults.MaximumHeadBytes);
+        Assert.InRange(Encoding.UTF8.GetByteCount(envelope.GetProperty("tail").GetString()!), 1, PythonResults.MaximumTailBytes);
+        Assert.True(Encoding.UTF8.GetByteCount(envelope.GetRawText()) < 4 * 1024, "The envelope must stay small.");
     }
 
     [Fact]

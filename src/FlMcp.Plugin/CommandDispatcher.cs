@@ -162,8 +162,8 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         });
         Register<PathArgs>("add_sample", async (a, ct) =>
         {
-            var path = paths.Resolve(a.Path, ".wav");
-            if (!File.Exists(path)) throw new FileNotFoundException("Stage the WAV sample inside the workspace.", path);
+            // Same rules as the scripting route: a workspace file, or a list_samples library entry staged into the workspace.
+            var path = scriptingPolicy.ResolveSample(a.Path);
             return await InvokeAsync<int>("add_sample_channel", new { samplePath = path }, ct).ConfigureAwait(false);
         });
     }
@@ -191,8 +191,12 @@ public sealed partial class CommandDispatcher : IAsyncDisposable
         {
             Arguments.Range(a.Track, 0, Arguments.MaximumMixerTrack, "track");
             Arguments.Range(a.Slot, 0, 9, "slot");
-            await InvokeTaskAsync("add_mixer_effect", new { track = a.Track, slot = a.Slot, pluginName = Arguments.Name(a.Name) }, ct).ConfigureAwait(false);
-            return new { loaded = true };
+            // The SDK's verification line names the effect the slot reports afterwards and, when a cold first
+            // load outran its 20 s guard but still landed, carries "loaded after N ms" — pass it through, or the
+            // model never learns why the call took that long.
+            var verification = await InvokeAsync<string>("add_mixer_effect",
+                new { track = a.Track, slot = a.Slot, pluginName = Arguments.Name(a.Name) }, ct).ConfigureAwait(false);
+            return new { loaded = true, verification };
         });
         Register<ParamArgs>("set_parameter", async (a, ct) =>
         {

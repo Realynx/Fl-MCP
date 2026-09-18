@@ -225,6 +225,11 @@ public sealed partial class ManagedSession(ServerSettings settings, IProcessHost
             return status;
         }
         catch (IOException) { return null; }
+        // A status poll that does not answer inside its own one/five second budget means "not ready yet", never a
+        // failure: the readiness and settle loops poll through it. BridgeClient now reports that budget as a
+        // TimeoutException so ordinary tool calls get a readable error instead of a bare cancellation, so both
+        // shapes have to land here.
+        catch (TimeoutException) { return null; }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return null; }
     }
 

@@ -224,7 +224,11 @@ public sealed class AttachmentTests
             throw new IOException("FL exited before readiness. token=" + secret + "; check the host log.")));
         Assert.Contains("check the host log", error.Message);
         Assert.DoesNotContain(secret, error.Message);
-        await Assert.ThrowsAsync<NotSupportedException>(() => ToolErrors.Run<int>(() => throw new NotSupportedException("internal")));
+        // Every other type is converted too now, prefixed with its name: an unconverted exception reached the
+        // MCP SDK as the detail-free "An error occurred invoking '<tool>'." (see ToolErrorTests).
+        var unexpected = await Assert.ThrowsAsync<McpException>(() =>
+            ToolErrors.Run<int>(() => throw new NotSupportedException("internal")));
+        Assert.Equal("NotSupportedException: internal", unexpected.Message);
     }
 
     private sealed class Fixture : IAsyncDisposable, IProcessHost, IBridgeClient, IInstanceSource
